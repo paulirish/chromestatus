@@ -1,48 +1,37 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-async function fetchCleanJson(url: string): Promise<any> {
-  console.log(`Fetching ${url}...`);
-  const res = await fetch(url);
-  if (!res.ok) {
-    throw new Error(`HTTP error! status: ${res.status} fetching ${url}`);
-  }
-  let text = await res.text();
-  if (text.startsWith(")]}'")) {
-    text = text.replace(/^\)\]\}'\n?/, '');
-  }
-  return JSON.parse(text);
-}
-
 async function main() {
   const dataDir = path.resolve(process.cwd(), 'data');
+  const rawDir = path.join(dataDir, 'raw');
   const featuresDir = path.join(dataDir, 'features');
   
   await fs.mkdir(featuresDir, { recursive: true });
 
-  console.log("Starting Option 1 verbose data collection...");
-  const initialData = await fetchCleanJson('https://chromestatus.com/api/v0/features?num=1');
-  const totalCount: number = initialData.total_count;
-  console.log(`Total features reported by API: ${totalCount}`);
+  console.log("Starting data compilation from raw cache...");
 
-  const option1Features: any[] = [];
-  const pageSize = 1000;
-  for (let start = 0; start < totalCount; start += pageSize) {
-    const pageData = await fetchCleanJson(`https://chromestatus.com/api/v0/features?num=${pageSize}&start=${start}`);
-    if (pageData?.features && Array.isArray(pageData.features)) {
-      option1Features.push(...pageData.features);
-    }
+  // 1. Load verbose features
+  console.log("Reading cached verbose features...");
+  const verboseContent = await fs.readFile(path.join(rawDir, 'features-verbose.json'), 'utf8');
+  const verboseData = JSON.parse(verboseContent);
+  const totalCount: unknown = verboseData.total_count;
+  if (typeof totalCount !== 'number') {
+    throw new Error(`Cache corrupted: total_count is not a number.`);
   }
+  const option1Features: any[] = Array.isArray(verboseData.features) ? verboseData.features : [];
+
+  console.log(`Total features expected from cache: ${totalCount}`);
 
   // Deduplicate and sort by ID
   const seenIds = new Set<number>();
   const uniqueOption1: any[] = [];
   const activeOtIds: number[] = [];
 
-  console.log("Fetching live Chromium release schedule milestone metadata to define current browser release thresholds...");
+  console.log("Evaluating release thresholds from cached milestones...");
   let activeStableMilestone = 148; // robust static default fallback baseline
   try {
-    const scheduleData = await fetchCleanJson('https://chromiumdash.appspot.com/fetch_milestones');
+    const scheduleContent = await fs.readFile(path.join(rawDir, 'milestones.json'), 'utf8');
+    const scheduleData = JSON.parse(scheduleContent);
     if (Array.isArray(scheduleData)) {
       const stableObj = scheduleData.find((m: any) => m && m.schedule_phase === 'stable');
       if (stableObj && typeof stableObj.milestone === 'number') {
@@ -50,7 +39,7 @@ async function main() {
       }
     }
   } catch {
-    console.log(`Warning: Failed to fetch dynamic release milestones from Chromium schedule API. Utilizing default baseline stable threshold M${activeStableMilestone}.`);
+    console.log(`Warning: Failed to read cached milestones from data/raw/milestones.json. Utilizing default baseline stable threshold M${activeStableMilestone}.`);
   }
   console.log(`Authoritative current active Stable Release Milestone threshold evaluated as: M${activeStableMilestone}`);
 
@@ -61,7 +50,7 @@ async function main() {
 
       // Evaluate if feature configures a genuinely active Origin Trial stage timeline
       let isGenuinelyActive = false;
-      const statusText = f.browsers?.chrome?.status?.text?.toLowerCase() || '';
+      const statusText = typeof f.browsers?.chrome?.status?.text === 'string' ? f.browsers.chrome.status.text.toLowerCase() : '';
 
       // Explicitly exclude globally shipped, enabled, or removed features from active evaluation sets
       const isShippedOrDead = statusText.includes('enabled by default') || 
@@ -92,7 +81,7 @@ async function main() {
 
         // Fallback logic: if browser status text explicitly asserts active trial, check if stages contradict
         if (!isGenuinelyActive && statusText.includes('origin trial')) {
-          const hasCompletedOt = f.stages?.some((s: any) => s.stage_type === 150 && s.desktop_last !== null && Number(s.desktop_last) < activeStableMilestone);
+          const hasCompletedOt = f.stages?.some((s: any) => s.stage_type === 150 && s.desktop_last !== null && s.desktop_last !== undefined && Number(s.desktop_last) < activeStableMilestone);
           if (!hasCompletedOt) {
             isGenuinelyActive = true;
           }
@@ -129,8 +118,9 @@ async function main() {
     JSON.stringify(activeOtIds)
   );
 
-  console.log("\nStarting Option 2 Lite array fetch...");
-  const option2Data = await fetchCleanJson('https://chromestatus.com/features.json');
+  console.log("\nProcessing Lite array data from cache...");
+  const option2Content = await fs.readFile(path.join(rawDir, 'features-lite.json'), 'utf8');
+  const option2Data = JSON.parse(option2Content);
   const option2Features: any[] = Array.isArray(option2Data) ? option2Data : option2Data.features || [];
   
   const cleanOption2 = option2Features.filter(f => f && f.id);
@@ -160,10 +150,10 @@ async function main() {
     JSON.stringify(cleanOption2)
   );
 
-  console.log("\nData collection and compilation complete.");
+  console.log("\nData compilation complete.");
 }
 
 main().catch(err => {
-  console.error("Fatal error fetching data:", err);
+  console.error("Fatal error compiling data:", err);
   process.exit(1);
 });

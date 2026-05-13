@@ -18,7 +18,9 @@
   "scripts": {
     "audit:mappings": "node scripts/print-join-table.ts",
     "audit:ot-symbols": "node scripts/print-active-ot-symbols.ts",
-    "fetch": "node build/fetch.ts",
+    "compile": "node build/compile-data.ts",
+    "download": "node build/download-raw.ts",
+    "fetch": "pnpm run download && pnpm run compile",
     "preflight": "pnpm test",
     "typecheck": "tsc --noEmit",
     "test": "pnpm run typecheck && pnpm run test:node",
