@@ -1,4 +1,4 @@
-# chromestatus-data
+# @paulirish/chromestatus
 
 A highly optimized, zero-build JavaScript/TypeScript client library encapsulating static periodic snapshots of the **ChromeStatus.com** feature catalog.
 
@@ -9,9 +9,9 @@ Designed following strict standards for **erasable syntax** (zero standard runti
 ## 📦 Installation
 
 ```bash
-npm install chromestatus-data
+npm install @paulirish/chromestatus
 # or using pnpm
-pnpm add chromestatus-data
+pnpm add @paulirish/chromestatus
 ```
 
 ---
@@ -37,9 +37,9 @@ The live API's single feature lookup payload is ~55MB across all active records.
 The primary immediate use case is to identify features actively gated behind an Origin Trial. Use dot-notation properties on detailed domain models for intelligent autocompletion:
 
 ```typescript
-import { ChromeStatusCatalog } from 'chromestatus-data';
+import { ChromeStatusCatalog } from '@paulirish/chromestatus';
 // Load raw snapshot outputs directly via native module import maps
-import liteData from 'chromestatus-data/data/lite.json' with { type: 'json' };
+import liteData from '@paulirish/chromestatus/data/lite.json' with { type: 'json' };
 
 async function verifyFeature() {
   // 1. Fast synchronous initialization using the base lite payload

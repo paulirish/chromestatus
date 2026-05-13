@@ -1,5 +1,5 @@
 {
-  "name": "chromestatus-data",
+  "name": "@paulirish/chromestatus",
   "version": "0.1.0",
   "type": "module",
   "description": "Modern, idiomatic client interface for ChromeStatus feature data",
