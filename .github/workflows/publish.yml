@@ -28,11 +28,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Preflight check
-        run: pnpm run preflight
-
       - name: Compile data snapshot
         run: pnpm run fetch
+
+      - name: Preflight check
+        run: pnpm run preflight
 
       - name: Publish to npm
         run: |
