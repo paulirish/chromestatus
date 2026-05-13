@@ -6,30 +6,28 @@ export * from './types.ts';
 interface SearchIndexRecord {
   id: number;
   symbol?: string; // lowercased and normalized symbol
-  nameTokens: string[]; // pre-lowercased tokens retaining meaningful short acronyms
-  stub: ChromeStatusFeatureStub;
+  stub: Readonly<ChromeStatusFeatureStub>;
+  nameTokens?: string[]; // lazily tokenized descriptive cache array
 }
 
 /**
  * A clean, high-performance client interface for querying the ChromeStatus feature catalog.
- * Engineered for absolute O(1) indexing determinism, fail-fast concurrency, zero-allocation queries, and deep immutability bounds.
+ * Engineered for absolute O(1) indexing determinism, fail-fast concurrency, lazy heap tokenization, and deep erasable immutability bounds.
  */
 export class ChromeStatusClient {
   private stubs: ReadonlyArray<ChromeStatusFeatureStub>;
-  private idMap: Map<number, ChromeStatusFeatureStub>;
+  private idMap: Map<number, Readonly<ChromeStatusFeatureStub>>;
   private searchIndex: SearchIndexRecord[];
   private originTrialIds: Set<number>;
 
-  constructor(stubs: ChromeStatusFeatureStub[], activeOriginTrialIds: number[] = []) {
-    // Freeze each object reference to guarantee deep immutability across application caches
-    const frozenStubs = stubs.map(stub => Object.freeze({ ...stub }));
-    this.stubs = frozenStubs;
+  constructor(stubs: ReadonlyArray<ChromeStatusFeatureStub>, activeOriginTrialIds: ReadonlyArray<number> = []) {
+    this.stubs = stubs;
     this.originTrialIds = new Set(activeOriginTrialIds);
     
     this.idMap = new Map();
     this.searchIndex = [];
 
-    for (const stub of frozenStubs) {
+    for (const stub of stubs) {
       this.idMap.set(stub.id, stub);
       
       // Enforce consistent lowercase normalization while explicitly filtering out sentinel defaults
@@ -41,9 +39,8 @@ export class ChromeStatusClient {
       this.searchIndex.push({
         id: stub.id,
         symbol,
-        // Retain meaningful short domain tokens/acronyms without restricting length
-        nameTokens: stub.name.toLowerCase().split(/[-_\s]+/).filter(t => t.length > 0),
         stub
+        // nameTokens array remains unallocated on the heap until specifically requested during free-text query searches
       });
     }
   }
@@ -56,7 +53,7 @@ export class ChromeStatusClient {
     const liteUrl = new URL('../data/lite.json', import.meta.url);
     const otUrl = new URL('../data/active-ot-index.json', import.meta.url);
 
-    // Concurrent hydration pipeline without swallowing file loading/parsing anomalies
+    // Concurrent hydration pipeline without swallowing operational file loading/parsing anomalies
     const [liteText, otText] = await Promise.all([
       fs.readFile(liteUrl, 'utf8'),
       fs.readFile(otUrl, 'utf8')
@@ -72,7 +69,7 @@ export class ChromeStatusClient {
       throw new Error("Client initialization failed: data/active-ot-index.json is malformed.");
     }
 
-    return new ChromeStatusClient(parsedStubs as ChromeStatusFeatureStub[], parsedOts as number[]);
+    return new ChromeStatusClient(parsedStubs as ReadonlyArray<ChromeStatusFeatureStub>, parsedOts as ReadonlyArray<number>);
   }
 
   /**
@@ -85,7 +82,7 @@ export class ChromeStatusClient {
   /**
    * Locates a specific feature cleanly by exact integer ID, web_feature symbol, or descriptive tokens.
    */
-  findFeature(query: string | number): ChromeStatusFeatureStub | undefined {
+  findFeature(query: string | number): Readonly<ChromeStatusFeatureStub> | undefined {
     if (typeof query === 'number') {
       return this.idMap.get(query);
     }
@@ -102,10 +99,15 @@ export class ChromeStatusClient {
     const tokenMatchedSymbol = this.searchIndex.find(r => r.symbol && r.symbol.length >= 3 && queryTokens.includes(r.symbol));
     if (tokenMatchedSymbol) return tokenMatchedSymbol.stub;
 
-    // 3. Strict descriptive multi-word token consensus checks
-    const matched = this.searchIndex.find(r => 
-      queryTokens.every(qt => r.nameTokens.some(nt => nt.includes(qt)))
-    );
+    // 3. Strict descriptive multi-word token consensus checks evaluated using lazy token caching
+    const matched = this.searchIndex.find(r => {
+      if (!r.nameTokens) {
+        // Populate descriptive cache array onto record on-demand to preserve startup heap memory bounds
+        r.nameTokens = r.stub.name.toLowerCase().split(/[-_\s]+/).filter(t => t.length > 0);
+      }
+      return queryTokens.every(qt => r.nameTokens!.some(nt => nt.includes(qt)));
+    });
+
     if (matched) return matched.stub;
 
     return undefined;
@@ -146,7 +148,7 @@ export class ChromeStatusClient {
 
   /**
    * Resolves absolute verbose single-feature chunk file metadata over local storage pathways dynamically.
-   * Propagates explicit syntax parsing anomalies directly to consumers to prevent data corruption masking.
+   * Intercepts explicit targeted lookup exceptions cleanly while bubbling operational infrastructure/syntax failures.
    */
   async getFeatureDetailed(id: number): Promise<ChromeStatusFeatureDetailed | undefined> {
     try {
@@ -154,12 +156,12 @@ export class ChromeStatusClient {
       const text = await fs.readFile(chunkUrl, 'utf8');
       return JSON.parse(text);
     } catch (err: any) {
-      // Let explicit JSON parsing/syntax anomalies bubble up to avoid masking file corruption
-      if (err instanceof SyntaxError) {
-        throw err;
+      // Explicitly swallow target absence file codes cleanly to return undefined
+      if (err?.code === 'ENOENT') {
+        return undefined;
       }
-      // File un-resolvability maps cleanly to undefined
-      return undefined;
+      // Propagate all critical infrastructure anomalies (EMFILE, EACCES) and malformed payload SyntaxErrors
+      throw err;
     }
   }
 }

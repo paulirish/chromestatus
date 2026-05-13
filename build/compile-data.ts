@@ -48,12 +48,25 @@ async function main() {
       seenIds.add(f.id);
       uniqueOption1.push(f);
 
-      // Evaluate if feature configures a genuinely active Origin Trial stage timeline
+      // ==============================================================================
+      // CRITICAL EMPIRICAL FILTERING HEURISTICS: EVALUATING GENUINE ACTIVE ORIGIN TRIALS
+      // ==============================================================================
+      // Upstream database architecture exhibits specific historical nuances and process gaps:
+      // 1. Historical Legacy Persistence: Stage 150 objects are permanently retained inside a feature's
+      //    timeline array. Ancient trials launched half a decade ago permanently record `desktop_last: null`
+      //    due to database evolution gaps. Naively scanning for Stage 150 without checking overarching release
+      //    states sweeps in hundreds of universally supported foundational web standards (e.g., Pointer Events).
+      // 2. Overarching Status Precedence: If an overarching record asserts released states ("Shipped",
+      //    "Enabled by default", or "Removed"), it definitively supersedes open legacy stage parameters.
+      // 3. Future-Scheduled Trials: Experiments mapping `desktop_first` integers targeting future browser releases
+      //    hold ending bounds >= stable, but remain hidden from public active dashboard interfaces until launch.
+      // 4. Private Evaluations: Confidential partner tests enforce `unlisted: true` and must be safely dropped.
+      // ==============================================================================
       let isGenuinelyActive = false;
       const statusText = typeof f.browsers?.chrome?.status?.text === 'string' ? f.browsers.chrome.status.text.toLowerCase() : '';
       const intentStage = typeof f.intent_stage === 'string' ? f.intent_stage.toLowerCase() : '';
 
-      // Explicitly exclude globally shipped, released, unlisted, or removed features from active evaluation sets
+      // Check 1: Purge shipped, released, unlisted, or dead entities globally
       const isShippedOrDead = f.is_released === true ||
                               f.unlisted === true ||
                               statusText.includes('enabled by default') || 
@@ -67,13 +80,13 @@ async function main() {
         if (f.stages && Array.isArray(f.stages)) {
           for (const s of f.stages) {
             if (s && s.stage_type === 150) {
-              // Exclude future scheduled trials that have not yet formally started in stable releases
+              // Check 2: Purge future scheduled trials whose starting milestone surpasses current stable releases
               const startM = s.desktop_first !== null && s.desktop_first !== undefined ? Number(s.desktop_first) : 0;
               if (!isNaN(startM) && startM > activeStableMilestone) {
                 continue;
               }
 
-              // Validate that ending desktop milestone strings evaluate to clean integer comparisons
+              // Check 3: Validate active trial bounds against live Chromium release threshold parameters
               if (s.desktop_last !== null && s.desktop_last !== undefined) {
                 const endM = Number(s.desktop_last);
                 if (!isNaN(endM) && endM >= activeStableMilestone) {
@@ -81,7 +94,8 @@ async function main() {
                   break;
                 }
               } else {
-                // If desktop_last is null/absent, ensure overarching feature status explicitly confirms active experimentation
+                // Check 4: Handle legacy desktop_last: null defaults safely
+                // Ensure overarching browser status text confirms active experimentation to avoid legacy noise traps.
                 if (statusText.includes('origin trial') || statusText.includes('in development') || f.browsers?.chrome?.origintrial === true) {
                   isGenuinelyActive = true;
                   break;
@@ -91,7 +105,7 @@ async function main() {
           }
         }
 
-        // Fallback logic
+        // Check 5: Fallback safety override if feature explicitly asserts active trial status
         if (!isGenuinelyActive && statusText.includes('origin trial')) {
           const hasCompletedOt = f.stages?.some((s: any) => {
             if (s.stage_type === 150 && s.desktop_last !== null && s.desktop_last !== undefined) {
