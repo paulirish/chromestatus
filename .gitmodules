@@ -1,0 +1,3 @@
+[submodule "submodules/chromium-dashboard"]
+	path = submodules/chromium-dashboard
+	url = https://github.com/GoogleChrome/chromium-dashboard.git
