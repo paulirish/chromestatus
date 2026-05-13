@@ -3,10 +3,15 @@
   "version": "0.1.0",
   "type": "module",
   "description": "Modern, idiomatic client interface for ChromeStatus feature data",
+  "exports": {
+    ".": "./src/index.ts",
+    "./data/*": "./data/*"
+  },
   "engines": {
     "node": ">=24.11.0"
   },
   "scripts": {
+    "fetch": "node build/fetch.ts",
     "typecheck": "tsc --noEmit",
     "test": "pnpm run typecheck && pnpm run test:node",
     "test:node": "node --test test/**/*.test.js"
