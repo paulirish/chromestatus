@@ -32,7 +32,6 @@ async function main() {
   for (const feature of legitimateStubs) {
     const symbol = feature.web_feature!;
     const matchedWeb = Object.hasOwn(webFeatures, symbol) 
-      // @ts-expect-error - Mapping index lookup inside vendored framework dictionary
       ? webFeatures[symbol] 
       : undefined;
 
