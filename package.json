@@ -3,6 +3,10 @@
   "version": "0.1.0",
   "type": "module",
   "description": "Modern, idiomatic client interface for ChromeStatus feature data",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/paulirish/chromestatus"
+  },
   "exports": {
     ".": "./src/index.ts",
     "./data/*": "./data/*"
