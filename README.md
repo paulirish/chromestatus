@@ -66,9 +66,15 @@ async function run() {
 To retrieve a flat, deduplicated list of all authoritative `web_feature` string symbols associated with active experimental features synchronously:
 
 ```typescript
-// Returns array of string identifiers: ['canvas', 'webgpu', ...]
-const activeWebFeatureIds = client.getActiveOriginTrialWebFeatureIds();
-console.log(activeWebFeatureIds);
+import { ChromeStatusClient } from '@paulirish/chromestatus';
+
+async function run() {
+  const client = await ChromeStatusClient.create();
+
+  // Returns array of string identifiers: ['canvas', 'webgpu', ...]
+  const activeWebFeatureIds = client.getActiveOriginTrialWebFeatureIds();
+  console.log(activeWebFeatureIds);
+}
 ```
 
 ---
@@ -78,15 +84,21 @@ console.log(activeWebFeatureIds);
 The package exposes convenient native array accessors alongside dynamic chunk resolvers to inspect absolute single-item lifecycle configurations on-demand:
 
 ```typescript
-// Access full base feature records array directly
-const graphicsFeatures = client.features.filter(f => f.category === 'Graphics');
+import { ChromeStatusClient } from '@paulirish/chromestatus';
 
-// Group arbitrary collections using native ES2023 Object.groupBy()
-const groupedByCategory = Object.groupBy(client.features, f => f.category);
+async function run() {
+  const client = await ChromeStatusClient.create();
 
-// Lazily resolve granular timeline structures (full stages array, custom URLs) over storage boundaries
-const verboseMetadata = await client.getFeatureDetailed(5172548013916160);
-console.log(verboseMetadata?.stages);
+  // Access full base feature records array directly
+  const graphicsFeatures = client.features.filter(f => f.category === 'Graphics');
+
+  // Group arbitrary collections using native ES2023 Object.groupBy()
+  const groupedByCategory = Object.groupBy(client.features, f => f.category);
+
+  // Lazily resolve granular timeline structures (full stages array, custom URLs) over storage boundaries
+  const verboseMetadata = await client.getFeatureDetailed(5172548013916160);
+  console.log(verboseMetadata?.stages);
+}
 ```
 
 ---
