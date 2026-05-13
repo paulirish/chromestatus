@@ -5,39 +5,43 @@ export * from './types.ts';
 
 interface SearchIndexRecord {
   id: number;
-  symbol?: string; // pre-lowercased symbol
-  nameTokens: string[]; // pre-lowercased descriptive word tokens
+  symbol?: string; // lowercased and normalized symbol
+  nameTokens: string[]; // pre-lowercased tokens retaining meaningful short acronyms
   stub: ChromeStatusFeatureStub;
 }
 
 /**
  * A clean, high-performance client interface for querying the ChromeStatus feature catalog.
- * Engineered for absolute O(1) indexing determinism, fail-fast concurrency, and zero runtime allocations.
+ * Engineered for absolute O(1) indexing determinism, fail-fast concurrency, zero-allocation queries, and deep immutability bounds.
  */
 export class ChromeStatusClient {
-  private stubs: ChromeStatusFeatureStub[];
+  private stubs: ReadonlyArray<ChromeStatusFeatureStub>;
   private idMap: Map<number, ChromeStatusFeatureStub>;
   private searchIndex: SearchIndexRecord[];
   private originTrialIds: Set<number>;
 
   constructor(stubs: ChromeStatusFeatureStub[], activeOriginTrialIds: number[] = []) {
-    this.stubs = stubs;
+    // Freeze each object reference to guarantee deep immutability across application caches
+    const frozenStubs = stubs.map(stub => Object.freeze({ ...stub }));
+    this.stubs = frozenStubs;
     this.originTrialIds = new Set(activeOriginTrialIds);
     
-    // Pre-compute O(1) cache identity maps and zero-allocation flat search index records
     this.idMap = new Map();
     this.searchIndex = [];
 
-    for (const stub of stubs) {
+    for (const stub of frozenStubs) {
       this.idMap.set(stub.id, stub);
       
-      const symbol = stub.web_feature && stub.web_feature !== 'Missing feature' && stub.web_feature.trim() !== ''
-        ? stub.web_feature.trim().toLowerCase() 
+      // Enforce consistent lowercase normalization while explicitly filtering out sentinel defaults
+      const rawSym = stub.web_feature?.trim();
+      const symbol = rawSym && rawSym !== 'Missing feature' && rawSym.toLowerCase() !== 'none'
+        ? rawSym.toLowerCase() 
         : undefined;
 
       this.searchIndex.push({
         id: stub.id,
         symbol,
+        // Retain meaningful short domain tokens/acronyms without restricting length
         nameTokens: stub.name.toLowerCase().split(/[-_\s]+/).filter(t => t.length > 0),
         stub
       });
@@ -52,13 +56,23 @@ export class ChromeStatusClient {
     const liteUrl = new URL('../data/lite.json', import.meta.url);
     const otUrl = new URL('../data/active-ot-index.json', import.meta.url);
 
-    // Concurrent resource hydration pipeline without swallowing evaluation exceptions
+    // Concurrent hydration pipeline without swallowing file loading/parsing anomalies
     const [liteText, otText] = await Promise.all([
       fs.readFile(liteUrl, 'utf8'),
       fs.readFile(otUrl, 'utf8')
     ]);
 
-    return new ChromeStatusClient(JSON.parse(liteText), JSON.parse(otText));
+    const parsedStubs: unknown = JSON.parse(liteText);
+    if (!Array.isArray(parsedStubs)) {
+      throw new Error("Client initialization failed: data/lite.json is malformed.");
+    }
+
+    const parsedOts: unknown = JSON.parse(otText);
+    if (!Array.isArray(parsedOts)) {
+      throw new Error("Client initialization failed: data/active-ot-index.json is malformed.");
+    }
+
+    return new ChromeStatusClient(parsedStubs as ChromeStatusFeatureStub[], parsedOts as number[]);
   }
 
   /**
@@ -80,24 +94,32 @@ export class ChromeStatusClient {
     const queryTokens = clean.split(/[-_\s]+/).filter(t => t.length > 0);
     if (!queryTokens.length) return undefined;
 
-    // 1. Exact pre-lowercased symbol match
+    // 1. Exact symbol match prioritization
     const exact = this.searchIndex.find(r => r.symbol === clean);
     if (exact) return exact.stub;
 
-    // 2. Symbol token containment (symbol exactly matches one of the provided long query tokens)
+    // 2. Full symbol word containment (preventing broad substring hijacking)
     const tokenMatchedSymbol = this.searchIndex.find(r => r.symbol && r.symbol.length >= 3 && queryTokens.includes(r.symbol));
     if (tokenMatchedSymbol) return tokenMatchedSymbol.stub;
 
-    // 3. Descriptive name containment matching using pre-computed split array structures
-    const queryMultiTokens = queryTokens.filter(t => t.length > 2);
-    if (queryMultiTokens.length) {
-      const matched = this.searchIndex.find(r => 
-        queryMultiTokens.every(qt => r.nameTokens.some(nt => nt.includes(qt)))
-      );
-      if (matched) return matched.stub;
-    }
+    // 3. Strict descriptive multi-word token consensus checks
+    const matched = this.searchIndex.find(r => 
+      queryTokens.every(qt => r.nameTokens.some(nt => nt.includes(qt)))
+    );
+    if (matched) return matched.stub;
 
     return undefined;
+  }
+
+  /**
+   * Locates all matching feature records sharing a target web_feature string symbol.
+   * Guarantees absolute retrieval correctness for external identifiers mapping to multiple catalog entries.
+   */
+  findFeaturesBySymbol(symbol: string): ReadonlyArray<ChromeStatusFeatureStub> {
+    const clean = symbol.trim().toLowerCase();
+    return this.searchIndex
+      .filter(r => r.symbol === clean)
+      .map(r => r.stub);
   }
 
   /**
@@ -108,16 +130,15 @@ export class ChromeStatusClient {
   }
 
   /**
-   * Extracts a clean, deduplicated array of all valid web_feature string identifiers
+   * Extracts a clean, lowercased, deduplicated array of all valid web_feature string identifiers
    * currently assigned to active experimental Origin Trials.
    */
   getActiveOriginTrialWebFeatureIds(): string[] {
     const results = new Set<string>();
-    // Scale loop traversals linearly by target active subset inversion size
     for (const id of this.originTrialIds) {
-      const feature = this.idMap.get(id);
-      if (feature?.web_feature && feature.web_feature !== 'Missing feature' && feature.web_feature.trim() !== '') {
-        results.add(feature.web_feature);
+      const record = this.searchIndex.find(r => r.id === id);
+      if (record?.symbol) {
+        results.add(record.symbol);
       }
     }
     return Array.from(results);
@@ -125,14 +146,19 @@ export class ChromeStatusClient {
 
   /**
    * Resolves absolute verbose single-feature chunk file metadata over local storage pathways dynamically.
+   * Propagates explicit syntax parsing anomalies directly to consumers to prevent data corruption masking.
    */
   async getFeatureDetailed(id: number): Promise<ChromeStatusFeatureDetailed | undefined> {
-    // Eliminate Time-of-Check to Time-of-Use (TOCTOU) existence array scan blocks entirely
     try {
       const chunkUrl = new URL(`../data/features/${id}.json`, import.meta.url);
       const text = await fs.readFile(chunkUrl, 'utf8');
       return JSON.parse(text);
-    } catch {
+    } catch (err: any) {
+      // Let explicit JSON parsing/syntax anomalies bubble up to avoid masking file corruption
+      if (err instanceof SyntaxError) {
+        throw err;
+      }
+      // File un-resolvability maps cleanly to undefined
       return undefined;
     }
   }

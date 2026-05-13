@@ -3,14 +3,14 @@ import path from 'node:path';
 
 async function fetchCleanJson(url: string): Promise<any> {
   console.log(`Fetching ${url}...`);
-  const res = await fetch(url);
+  // Implement explicit AbortSignal timeout wrappers to prevent indefinite network deadlocks
+  const res = await fetch(url, { signal: AbortSignal.timeout(30000) });
   if (!res.ok) {
     throw new Error(`HTTP error! status: ${res.status} fetching ${url}`);
   }
   let text = await res.text();
-  if (text.startsWith(")]}'")) {
-    text = text.replace(/^\)\]\}'\n?/, '');
-  }
+  // Robust prefix stripping handling intermediate whitespace or byte order marks (BOM)
+  text = text.trim().replace(/^\)\]\}'\n?/, '');
   return JSON.parse(text);
 }
 
@@ -23,9 +23,9 @@ async function main() {
   // 1. Verbose features
   console.log("Fetching verbose data pagination metadata...");
   const initialData = await fetchCleanJson('https://chromestatus.com/api/v0/features?num=1');
-  const totalCount: unknown = initialData.total_count;
-  if (typeof totalCount !== 'number') {
-    throw new Error(`Invalid API response: total_count is not a number.`);
+  const totalCount = Number(initialData?.total_count);
+  if (!totalCount || isNaN(totalCount) || totalCount < 3000) {
+    throw new Error(`Invalid API response: total_count evaluates to unexpected bounds (${totalCount}).`);
   }
   console.log(`Total features reported by API: ${totalCount}`);
 

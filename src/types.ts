@@ -10,8 +10,7 @@ export type StageType =
   | 140 // Origin Trial
   | 150 // Origin Trial (Active / Specific)
   | 160 // Intent to Ship
-  | 410 | 430 | 450 | 460 | 470 // Deprecation/Removal stages
-  | number;
+  | 410 | 430 | 450 | 460 | 470; // Deprecation/Removal stages
 
 export interface Stage {
   id: number;

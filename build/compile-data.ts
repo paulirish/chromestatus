@@ -14,9 +14,9 @@ async function main() {
   console.log("Reading cached verbose features...");
   const verboseContent = await fs.readFile(path.join(rawDir, 'features-verbose.json'), 'utf8');
   const verboseData = JSON.parse(verboseContent);
-  const totalCount: unknown = verboseData.total_count;
-  if (typeof totalCount !== 'number') {
-    throw new Error(`Cache corrupted: total_count is not a number.`);
+  const totalCount = Number(verboseData?.total_count);
+  if (!totalCount || isNaN(totalCount)) {
+    throw new Error(`Cache corrupted: total_count evaluates to invalid metrics.`);
   }
   const option1Features: any[] = Array.isArray(verboseData.features) ? verboseData.features : [];
 
@@ -44,7 +44,7 @@ async function main() {
   console.log(`Authoritative current active Stable Release Milestone threshold evaluated as: M${activeStableMilestone}`);
 
   for (const f of option1Features) {
-    if (f && f.id && !seenIds.has(f.id)) {
+    if (f && Number.isInteger(Number(f.id)) && !seenIds.has(f.id)) {
       seenIds.add(f.id);
       uniqueOption1.push(f);
 
@@ -62,14 +62,15 @@ async function main() {
         if (f.stages && Array.isArray(f.stages)) {
           for (const s of f.stages) {
             if (s && s.stage_type === 150) {
-              // If an ending desktop milestone is declared, verify if it meets or exceeds live release thresholds
+              // Validate that ending desktop milestone strings evaluate to clean integer comparisons
               if (s.desktop_last !== null && s.desktop_last !== undefined) {
-                if (Number(s.desktop_last) >= activeStableMilestone) {
+                const m = Number(s.desktop_last);
+                if (!isNaN(m) && m >= activeStableMilestone) {
                   isGenuinelyActive = true;
                   break;
                 }
               } else {
-                // If desktop_last is null/absent, ensure the overarching feature status explicitly confirms active experimentation
+                // If desktop_last is null/absent, ensure overarching feature status explicitly confirms active experimentation
                 if (statusText.includes('origin trial') || statusText.includes('in development') || f.browsers?.chrome?.origintrial === true) {
                   isGenuinelyActive = true;
                   break;
@@ -79,9 +80,15 @@ async function main() {
           }
         }
 
-        // Fallback logic: if browser status text explicitly asserts active trial, check if stages contradict
+        // Fallback logic
         if (!isGenuinelyActive && statusText.includes('origin trial')) {
-          const hasCompletedOt = f.stages?.some((s: any) => s.stage_type === 150 && s.desktop_last !== null && s.desktop_last !== undefined && Number(s.desktop_last) < activeStableMilestone);
+          const hasCompletedOt = f.stages?.some((s: any) => {
+            if (s.stage_type === 150 && s.desktop_last !== null && s.desktop_last !== undefined) {
+              const m = Number(s.desktop_last);
+              return !isNaN(m) && m < activeStableMilestone;
+            }
+            return false;
+          });
           if (!hasCompletedOt) {
             isGenuinelyActive = true;
           }
@@ -104,12 +111,14 @@ async function main() {
     throw new Error(`Integrity validation failed: Processed granular verbose feature count (${uniqueOption1.length}) does not perfectly equal reported catalog total (${totalCount}). Snapshot mapping is partial or corrupted.`);
   }
 
-  console.log(`Writing ${uniqueOption1.length} granular verbose JSON chunks to data/features/...`);
-  for (const f of uniqueOption1) {
-    await fs.writeFile(
-      path.join(featuresDir, `${f.id}.json`), 
-      JSON.stringify(f)
-    );
+  console.log(`Writing ${uniqueOption1.length} granular verbose JSON chunks concurrently in bounded batches...`);
+  // Batched execution limiting file descriptor pressuring while maximizing IO multi-threading speed
+  const batchSize = 100;
+  for (let i = 0; i < uniqueOption1.length; i += batchSize) {
+    const batch = uniqueOption1.slice(i, i + batchSize);
+    await Promise.all(batch.map(f => 
+      fs.writeFile(path.join(featuresDir, `${f.id}.json`), JSON.stringify(f))
+    ));
   }
 
   console.log(`Writing ${activeOtIds.length} Active Origin Trial index IDs to data/active-ot-index.json...`);
@@ -123,20 +132,27 @@ async function main() {
   const option2Data = JSON.parse(option2Content);
   const option2Features: any[] = Array.isArray(option2Data) ? option2Data : option2Data.features || [];
   
-  const cleanOption2 = option2Features.filter(f => f && f.id);
+  const cleanOption2 = option2Features.filter(f => f && Number.isInteger(Number(f.id)));
   cleanOption2.sort((a, b) => Number(a.id) - Number(b.id));
 
   // Pre-map web_feature identifiers onto Lite instances for synchronous querying
+  // Explicitly filter out unmapped sentinels like "None" or "Missing feature"
   const webFeatureMap = new Map<number, string>();
   for (const f of uniqueOption1) {
-    if (f?.web_feature && typeof f.web_feature === 'string' && f.web_feature !== 'Missing feature') {
-      webFeatureMap.set(f.id, f.web_feature);
+    if (f?.web_feature && typeof f.web_feature === 'string') {
+      const cleanSym = f.web_feature.trim();
+      if (cleanSym !== '' && cleanSym !== 'Missing feature' && cleanSym.toLowerCase() !== 'none') {
+        webFeatureMap.set(f.id, cleanSym);
+      }
     }
   }
 
   for (const f of cleanOption2) {
     if (webFeatureMap.has(f.id)) {
       f.web_feature = webFeatureMap.get(f.id);
+    } else {
+      // Strip pre-existing unmapped/stale keys to enforce consistency
+      delete f.web_feature;
     }
   }
 
