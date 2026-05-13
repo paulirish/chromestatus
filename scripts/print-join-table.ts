@@ -46,13 +46,13 @@ async function main() {
 
   rows.sort((a, b) => a.symbol.localeCompare(b.symbol));
 
-  console.log('| Web Feature Symbol | Web Feature Name | Chrome Feature ID | Chrome Feature Name |');
-  console.log('| :--- | :--- | :--- | :--- |');
+  console.log('| Web Feature Symbol | Web Feature Name | Chrome Feature Name |');
+  console.log('| :--- | :--- | :--- |');
 
   for (const r of rows) {
     const safeWebName = r.webName.replace(/\|/g, '\\|').replace(/\n/g, ' ');
     const safeChromeName = r.chromeName.replace(/\|/g, '\\|').replace(/\n/g, ' ');
-    console.log(`| \`${r.symbol}\` | ${safeWebName} | [${r.chromeId}](https://chromestatus.com/feature/${r.chromeId}) | ${safeChromeName} |`);
+    console.log(`| \`${r.symbol}\` | ${safeWebName} | [${safeChromeName}](https://chromestatus.com/feature/${r.chromeId}) |`);
   }
 }
 
