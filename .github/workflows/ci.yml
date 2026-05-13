@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  basics:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v6.3.0
+        with:
+          node-version: 24
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Preflight (Typecheck, Lint, Tests)
+        env:
+          TEST_REPORTER: spec
+        run: pnpm run preflight
