@@ -35,34 +35,27 @@ The live API's single feature lookup payload is ~55MB across all active records.
 
 ## 🚀 Usage
 
-### 1. Initializing the Client & Checking Origin Trial Status
+### 1. Initializing the Client & Finding Features
 
-The primary immediate use case is to identify features actively gated behind an Origin Trial. Use dot-notation properties on detailed domain models for intelligent autocompletion:
+Instantiate the client natively using its asynchronous initializer, which automatically maps local pre-compiled catalog snapshot datasets internally by default:
 
 ```typescript
-import { ChromeStatusCatalog } from '@paulirish/chromestatus';
-// Load raw snapshot outputs directly via native module import maps
-import liteData from '@paulirish/chromestatus/data/lite.json' with { type: 'json' };
+import { ChromeStatusClient } from '@paulirish/chromestatus';
 
-async function verifyFeature() {
-  // 1. Fast synchronous initialization using the base lite payload
-  const catalog = new ChromeStatusCatalog(liteData);
+async function run() {
+  // Instantiates client facade mapping local snapshot layers automatically
+  const client = await ChromeStatusClient.create();
 
-  // 2. Hydrate highly granular verbose timeline metadata on-demand
-  const canvasFeature = await catalog.getFeatureVerbose('canvas');
-  if (!canvasFeature) return;
+  // Locate a feature by exact web_feature symbol, unique ID, or descriptive substring
+  const feature = client.findFeature('canvas');
+  if (!feature) return;
 
-  // 3. Inspect Origin Trial routing cleanly
-  const ot = canvasFeature.originTrial;
-  if (ot.isActive) {
-    console.log(`Trial Name: ${ot.chromiumTrialName}`);
-    console.log(`Trial ID: ${ot.id}`);
-    console.log(`Feedback URL: ${ot.feedbackUrl}`);
-  }
+  console.log(`Found feature: ${feature.name} (ID: ${feature.id})`);
+  console.log(`Category: ${feature.category}`);
 
-  // 4. Inspect vendor alignment views with IDE literal type autocompletion
-  console.log(`Safari Position: ${canvasFeature.vendorViews.safari.text}`); 
-  // IDE hints: 'No signal' | 'Shipped' | 'Under consideration'
+  // Synchronously verify active Origin Trial assignment configuration
+  const isOt = client.isFeatureInOriginTrial(feature.id);
+  console.log(`Is in active Origin Trial: ${isOt}`);
 }
 ```
 
@@ -70,27 +63,30 @@ async function verifyFeature() {
 
 ### 2. Extracting Active Origin Trial Web Feature IDs
 
-To retrieve a flat, deduplicated list of all `web_feature` string symbols associated with active experimental features synchronously:
+To retrieve a flat, deduplicated list of all authoritative `web_feature` string symbols associated with active experimental features synchronously:
 
 ```typescript
-// Returns array of authoritative identifiers: ['canvas', 'webgpu', ...]
-const activeWebFeatureIds = catalog.getActiveOriginTrialWebFeatureIds();
+// Returns array of string identifiers: ['canvas', 'webgpu', ...]
+const activeWebFeatureIds = client.getActiveOriginTrialWebFeatureIds();
 console.log(activeWebFeatureIds);
 ```
 
 ---
 
-### 3. Querying Collections with Set Intersections
+### 3. Filtering Collections & Resolving Verbose Timelines
 
-The package leverages inverted in-memory Set maps to navigate the 3,416 feature records efficiently without heavy iterative scanning:
+The package exposes convenient native array accessors alongside dynamic chunk resolvers to inspect absolute single-item lifecycle configurations on-demand:
 
 ```typescript
-const activeGraphicsTrials = catalog.features
-  .where({ isOriginTrial: true, category: 'Graphics' })
-  .toArray();
+// Access full base feature records array directly
+const graphicsFeatures = client.features.filter(f => f.category === 'Graphics');
 
-// Group arbitrary structural outcomes using native ES2023 Object.groupBy()
-const groupedByCategory = catalog.features.groupBy(f => f.category);
+// Group arbitrary collections using native ES2023 Object.groupBy()
+const groupedByCategory = Object.groupBy(client.features, f => f.category);
+
+// Lazily resolve granular timeline structures (full stages array, custom URLs) over storage boundaries
+const verboseMetadata = await client.getFeatureDetailed(5172548013916160);
+console.log(verboseMetadata?.stages);
 ```
 
 ---

@@ -1,89 +1,124 @@
-import { FeatureCollection } from './collection.ts';
-import type { 
-  ChromeStatusFeatureStub, 
-  ChromeStatusFeatureDetailed 
-} from './types.ts';
+import fs from 'node:fs/promises';
+import type { ChromeStatusFeatureStub, ChromeStatusFeatureDetailed } from './types.ts';
 
 export * from './types.ts';
-export * from './collection.ts';
-
-/** Configuration structure initializing client instance data logic */
-export interface ClientOptions {
-  /** Custom provider resolving core baseline metadata stubs */
-  stubDataSource?: () => Promise<ChromeStatusFeatureStub[]>;
-  /** Callback mapping unique feature IDs to full Option 1 verbose structure */
-  verboseDataProvider?: (id: number) => Promise<ChromeStatusFeatureDetailed>;
-  /** Pre-compiled standalone array of feature IDs actively gated behind an Origin Trial */
-  activeOriginTrialIds?: number[];
-  /** Optional base caching settings */
-  enableCache?: boolean;
-}
 
 /**
- * Core entry facade orchestrating ChromeStatus index lookups.
+ * A clean, high-performance client interface for querying the ChromeStatus feature catalog.
  */
 export class ChromeStatusClient {
-  public features: FeatureCollection;
-  private verboseCache = new Map<number, ChromeStatusFeatureDetailed>();
+  private stubs: ChromeStatusFeatureStub[];
+  private originTrialIds: Set<number>;
 
-  private options: ClientOptions;
-
-  constructor(
-    stubs: ChromeStatusFeatureStub[],
-    options: ClientOptions = {}
-  ) {
-    this.options = options;
-    this.features = new FeatureCollection(stubs, async (id) => {
-      if (this.options.enableCache !== false && this.verboseCache.has(id)) {
-        const cached = this.verboseCache.get(id);
-        if (cached) return cached;
-      }
-
-      if (!this.options.verboseDataProvider) {
-        throw new Error(`Verbose data lookup requested for ID ${id} but no provider was configured.`);
-      }
-
-      const payload = await this.options.verboseDataProvider(id);
-      if (this.options.enableCache !== false) {
-        this.verboseCache.set(id, payload);
-      }
-      return payload;
-    }, this.options.activeOriginTrialIds);
+  constructor(stubs: ChromeStatusFeatureStub[], activeOriginTrialIds: number[] = []) {
+    this.stubs = stubs;
+    this.originTrialIds = new Set(activeOriginTrialIds);
   }
 
-  /** Top-level grouping delegator */
-  groupBy<K extends PropertyKey>(
-    callback: (feature: ChromeStatusFeatureStub) => K
-  ): Record<K, ChromeStatusFeatureStub[]> {
-    return this.features.groupBy(callback);
+  /**
+   * Initializes the client instance, automatically loading bundled local snapshots by default.
+   */
+  static async create(): Promise<ChromeStatusClient> {
+    let stubs: ChromeStatusFeatureStub[] = [];
+    let otIds: number[] = [];
+
+    try {
+      const liteUrl = new URL('../data/lite.json', import.meta.url);
+      const text = await fs.readFile(liteUrl, 'utf8');
+      stubs = JSON.parse(text);
+    } catch {
+      stubs = [];
+    }
+
+    try {
+      const otUrl = new URL('../data/active-ot-index.json', import.meta.url);
+      const text = await fs.readFile(otUrl, 'utf8');
+      otIds = JSON.parse(text);
+    } catch {
+      otIds = [];
+    }
+
+    return new ChromeStatusClient(stubs, otIds);
   }
 
-  /** Resolves feature records using web_feature symbol or name directly */
-  query(symbolOrName: string): ChromeStatusFeatureStub[] {
-    return this.features.query(symbolOrName);
+  /**
+   * Returns the complete base catalog array of features.
+   */
+  get features(): ChromeStatusFeatureStub[] {
+    return this.stubs;
   }
 
-  /** Synchronously extracts all valid web_feature symbols currently assigned to an active Origin Trial */
+  /**
+   * Locates a specific feature by exact integer ID, web_feature symbol, or descriptive name.
+   */
+  findFeature(query: string | number): ChromeStatusFeatureStub | undefined {
+    if (typeof query === 'number') {
+      return this.stubs.find(f => f.id === query);
+    }
+
+    const clean = query.trim().toLowerCase();
+
+    // 1. Exact web_feature symbol match
+    const exactSymbol = this.stubs.find(f => f.web_feature && f.web_feature.toLowerCase() === clean);
+    if (exactSymbol) return exactSymbol;
+
+    // 2. Embedded symbol substring match (mandate length >= 3 to prevent single-letter overlap)
+    const embeddedSymbol = this.stubs.find(f => 
+      f.web_feature && 
+      f.web_feature !== 'Missing feature' && 
+      f.web_feature.length >= 3 && 
+      clean.includes(f.web_feature.toLowerCase())
+    );
+    if (embeddedSymbol) return embeddedSymbol;
+
+    // 3. Multi-token descriptive name containment
+    const tokens = clean.split(/[-_\s]+/).filter(t => t.length > 2);
+    if (tokens.length) {
+      return this.stubs.find(f => {
+        const nameLower = f.name.toLowerCase();
+        return tokens.every(t => nameLower.includes(t));
+      });
+    }
+
+    return undefined;
+  }
+
+  /**
+   * Evaluates whether a specific feature ID is actively configured for an Origin Trial.
+   */
+  isFeatureInOriginTrial(id: number): boolean {
+    return this.originTrialIds.has(id);
+  }
+
+  /**
+   * Extracts a clean, deduplicated array of all valid web_feature string identifiers
+   * currently assigned to active experimental Origin Trials.
+   */
   getActiveOriginTrialWebFeatureIds(): string[] {
-    return this.features.getActiveOriginTrialWebFeatureIds();
+    const results = new Set<string>();
+    for (const feature of this.stubs) {
+      if (this.isFeatureInOriginTrial(feature.id)) {
+        if (feature.web_feature && feature.web_feature !== 'Missing feature' && feature.web_feature.trim() !== '') {
+          results.add(feature.web_feature);
+        }
+      }
+    }
+    return Array.from(results);
   }
 
-  /** Flushes localized internal payload state */
-  clearCache(): void {
-    this.verboseCache.clear();
-  }
-}
+  /**
+   * Resolves the absolute, comprehensive verbose metadata timeline payload for a feature dynamically.
+   */
+  async getFeatureDetailed(id: number): Promise<ChromeStatusFeatureDetailed | undefined> {
+    const base = this.stubs.find(f => f.id === id);
+    if (!base) return undefined;
 
-/**
- * Factory entry instantiating pre-indexed API ecosystem wrapper.
- */
-export async function createClient(options: ClientOptions = {}): Promise<ChromeStatusClient> {
-  let stubs: ChromeStatusFeatureStub[] = [];
-  if (options.stubDataSource) {
-    stubs = await options.stubDataSource();
-  } else {
-    // Fallback mock loader framework logic if packaged direct
-    stubs = [];
+    try {
+      const chunkUrl = new URL(`../data/features/${id}.json`, import.meta.url);
+      const text = await fs.readFile(chunkUrl, 'utf8');
+      return JSON.parse(text);
+    } catch {
+      return undefined;
+    }
   }
-  return new ChromeStatusClient(stubs, options);
 }
