@@ -17,6 +17,7 @@
   },
   "scripts": {
     "audit:mappings": "node scripts/print-join-table.ts",
+    "audit:ot-symbols": "node scripts/print-active-ot-symbols.ts",
     "fetch": "node build/fetch.ts",
     "preflight": "pnpm test",
     "typecheck": "tsc --noEmit",

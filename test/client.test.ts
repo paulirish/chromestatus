@@ -83,20 +83,24 @@ test('Origin Trial Expiration Filtering - Purges completed historical legacy exp
   const client = await ChromeStatusClient.create();
   if (client.features.length === 0) return;
 
-  // Target Feature: "[WebAudio] AudioWorklet" (Feature ID: 4588498229133312)
+  // Locate AudioWorklet feature cleanly via descriptive string lookup
+  const audioWorklet = client.findFeature('audioworklet');
+  assert.notEqual(audioWorklet, undefined, 'Must resolve target AudioWorklet feature stub');
+  
   // Upstream trial stage ended in Chrome 65. Must evaluate as completed/inactive.
-  const isAudioWorkletActive = client.isFeatureInOriginTrial(4588498229133312);
   assert.equal(
-    isAudioWorkletActive, 
+    client.isFeatureInOriginTrial(audioWorklet!.id), 
     false, 
     'AudioWorklet completed its Origin Trial in milestone 65. Must evaluate as inactive.'
   );
 
-  // Target Feature: "Interest Invokers" (Feature ID: 4530756656562176)
+  // Locate Interest Invokers feature cleanly via descriptive string lookup
+  const interestInvokers = client.findFeature('interest invokers');
+  assert.notEqual(interestInvokers, undefined, 'Must resolve target Interest Invokers feature stub');
+
   // Upstream trial stage ended in Chrome 137. Must evaluate as completed/inactive.
-  const isInterestInvokersActive = client.isFeatureInOriginTrial(4530756656562176);
   assert.equal(
-    isInterestInvokersActive, 
+    client.isFeatureInOriginTrial(interestInvokers!.id), 
     false, 
     'Interest Invokers completed its Origin Trial in milestone 137. Must evaluate as inactive.'
   );
