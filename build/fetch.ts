@@ -75,6 +75,20 @@ async function main() {
   const cleanOption2 = option2Features.filter(f => f && f.id);
   cleanOption2.sort((a, b) => Number(a.id) - Number(b.id));
 
+  // Pre-map web_feature identifiers onto Lite instances for synchronous querying
+  const webFeatureMap = new Map<number, string>();
+  for (const f of uniqueOption1) {
+    if (f?.web_feature && typeof f.web_feature === 'string' && f.web_feature !== 'Missing feature') {
+      webFeatureMap.set(f.id, f.web_feature);
+    }
+  }
+
+  for (const f of cleanOption2) {
+    if (webFeatureMap.has(f.id)) {
+      f.web_feature = webFeatureMap.get(f.id);
+    }
+  }
+
   console.log(`Writing ${cleanOption2.length} flattened base records to data/lite.json...`);
   await fs.writeFile(
     path.join(dataDir, 'lite.json'),

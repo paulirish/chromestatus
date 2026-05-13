@@ -13,6 +13,8 @@ export interface ClientOptions {
   stubDataSource?: () => Promise<ChromeStatusFeatureStub[]>;
   /** Callback mapping unique feature IDs to full Option 1 verbose structure */
   verboseDataProvider?: (id: number) => Promise<ChromeStatusFeatureDetailed>;
+  /** Pre-compiled standalone array of feature IDs actively gated behind an Origin Trial */
+  activeOriginTrialIds?: number[];
   /** Optional base caching settings */
   enableCache?: boolean;
 }
@@ -46,7 +48,7 @@ export class ChromeStatusClient {
         this.verboseCache.set(id, payload);
       }
       return payload;
-    });
+    }, this.options.activeOriginTrialIds);
   }
 
   /** Top-level grouping delegator */
@@ -54,6 +56,11 @@ export class ChromeStatusClient {
     callback: (feature: ChromeStatusFeatureStub) => K
   ): Record<K, ChromeStatusFeatureStub[]> {
     return this.features.groupBy(callback);
+  }
+
+  /** Resolves feature records using web_feature symbol or name directly */
+  query(symbolOrName: string): ChromeStatusFeatureStub[] {
+    return this.features.query(symbolOrName);
   }
 
   /** Flushes localized internal payload state */

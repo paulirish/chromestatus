@@ -31,6 +31,9 @@ jobs:
       - name: Preflight check
         run: pnpm run preflight
 
+      - name: Compile data snapshot
+        run: pnpm run fetch
+
       - name: Publish to npm
         run: |
           npm install -g npm@latest
