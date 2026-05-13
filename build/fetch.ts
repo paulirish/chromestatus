@@ -61,29 +61,41 @@ async function main() {
 
       // Evaluate if feature configures a genuinely active Origin Trial stage timeline
       let isGenuinelyActive = false;
-      if (f.stages && Array.isArray(f.stages)) {
-        for (const s of f.stages) {
-          if (s && s.stage_type === 150) {
-            // If an ending desktop milestone is declared, verify if it meets or exceeds live release thresholds
-            if (s.desktop_last !== null && s.desktop_last !== undefined) {
-              if (Number(s.desktop_last) >= activeStableMilestone) {
-                isGenuinelyActive = true;
-                break;
+      const statusText = f.browsers?.chrome?.status?.text?.toLowerCase() || '';
+
+      // Explicitly exclude globally shipped, enabled, or removed features from active evaluation sets
+      const isShippedOrDead = statusText.includes('enabled by default') || 
+                              statusText.includes('shipped') || 
+                              statusText.includes('removed') ||
+                              statusText.includes('no longer pursuing');
+
+      if (!isShippedOrDead) {
+        if (f.stages && Array.isArray(f.stages)) {
+          for (const s of f.stages) {
+            if (s && s.stage_type === 150) {
+              // If an ending desktop milestone is declared, verify if it meets or exceeds live release thresholds
+              if (s.desktop_last !== null && s.desktop_last !== undefined) {
+                if (Number(s.desktop_last) >= activeStableMilestone) {
+                  isGenuinelyActive = true;
+                  break;
+                }
+              } else {
+                // If desktop_last is null/absent, ensure the overarching feature status explicitly confirms active experimentation
+                if (statusText.includes('origin trial') || statusText.includes('in development') || f.browsers?.chrome?.origintrial === true) {
+                  isGenuinelyActive = true;
+                  break;
+                }
               }
-            } else {
-              // If desktop_last is null/absent, trial schedule limits are open-ended or pending extensions
-              isGenuinelyActive = true;
-              break;
             }
           }
         }
-      }
 
-      // Fallback logic: if browser status text explicitly asserts active trial, check if stages contradict
-      if (!isGenuinelyActive && f.browsers?.chrome?.status?.text?.toLowerCase() === 'origin trial') {
-        const hasCompletedOt = f.stages?.some((s: any) => s.stage_type === 150 && s.desktop_last !== null && Number(s.desktop_last) < activeStableMilestone);
-        if (!hasCompletedOt) {
-          isGenuinelyActive = true;
+        // Fallback logic: if browser status text explicitly asserts active trial, check if stages contradict
+        if (!isGenuinelyActive && statusText.includes('origin trial')) {
+          const hasCompletedOt = f.stages?.some((s: any) => s.stage_type === 150 && s.desktop_last !== null && Number(s.desktop_last) < activeStableMilestone);
+          if (!hasCompletedOt) {
+            isGenuinelyActive = true;
+          }
         }
       }
 

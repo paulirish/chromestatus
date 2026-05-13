@@ -71,7 +71,7 @@ import { ChromeStatusClient } from '@paulirish/chromestatus';
 async function run() {
   const client = await ChromeStatusClient.create();
 
-  // Returns array of string identifiers: ['canvas', 'webgpu', ...]
+  // Returns array of authoritative identifiers: ['speculation-rules', 'fedcm', 'observable', ...]
   const activeWebFeatureIds = client.getActiveOriginTrialWebFeatureIds();
   console.log(activeWebFeatureIds);
 }
