@@ -68,7 +68,19 @@ async function verifyFeature() {
 
 ---
 
-### 2. Querying Collections with Set Intersections
+### 2. Extracting Active Origin Trial Web Feature IDs
+
+To retrieve a flat, deduplicated list of all `web_feature` string symbols associated with active experimental features synchronously:
+
+```typescript
+// Returns array of authoritative identifiers: ['canvas', 'webgpu', ...]
+const activeWebFeatureIds = catalog.getActiveOriginTrialWebFeatureIds();
+console.log(activeWebFeatureIds);
+```
+
+---
+
+### 3. Querying Collections with Set Intersections
 
 The package leverages inverted in-memory Set maps to navigate the 3,416 feature records efficiently without heavy iterative scanning:
 
@@ -76,10 +88,6 @@ The package leverages inverted in-memory Set maps to navigate the 3,416 feature 
 const activeGraphicsTrials = catalog.features
   .where({ isOriginTrial: true, category: 'Graphics' })
   .toArray();
-
-// Extract clean, deduplicated array of all authoritative web_feature IDs natively
-const activeWebFeatureIds = catalog.getActiveOriginTrialWebFeatureIds();
-console.log(activeWebFeatureIds); // ['canvas', 'webgpu', ...]
 
 // Group arbitrary structural outcomes using native ES2023 Object.groupBy()
 const groupedByCategory = catalog.features.groupBy(f => f.category);
