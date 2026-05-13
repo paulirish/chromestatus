@@ -1,0 +1,17 @@
+# Dependency directories
+node_modules/
+
+# Submodules and internal documentation files
+submodules/
+.gitmodules
+API.md
+chromestatus-package-design.md
+
+# Build, test, and workflow sources
+build/
+test/
+.github/
+
+# Project configurations
+tsconfig.json
+pnpm-lock.yaml
