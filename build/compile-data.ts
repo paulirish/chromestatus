@@ -51,21 +51,32 @@ async function main() {
       // Evaluate if feature configures a genuinely active Origin Trial stage timeline
       let isGenuinelyActive = false;
       const statusText = typeof f.browsers?.chrome?.status?.text === 'string' ? f.browsers.chrome.status.text.toLowerCase() : '';
+      const intentStage = typeof f.intent_stage === 'string' ? f.intent_stage.toLowerCase() : '';
 
-      // Explicitly exclude globally shipped, enabled, or removed features from active evaluation sets
-      const isShippedOrDead = statusText.includes('enabled by default') || 
+      // Explicitly exclude globally shipped, released, unlisted, or removed features from active evaluation sets
+      const isShippedOrDead = f.is_released === true ||
+                              f.unlisted === true ||
+                              statusText.includes('enabled by default') || 
                               statusText.includes('shipped') || 
                               statusText.includes('removed') ||
-                              statusText.includes('no longer pursuing');
+                              statusText.includes('no longer pursuing') ||
+                              intentStage.includes('shipped') ||
+                              intentStage.includes('removed');
 
       if (!isShippedOrDead) {
         if (f.stages && Array.isArray(f.stages)) {
           for (const s of f.stages) {
             if (s && s.stage_type === 150) {
+              // Exclude future scheduled trials that have not yet formally started in stable releases
+              const startM = s.desktop_first !== null && s.desktop_first !== undefined ? Number(s.desktop_first) : 0;
+              if (!isNaN(startM) && startM > activeStableMilestone) {
+                continue;
+              }
+
               // Validate that ending desktop milestone strings evaluate to clean integer comparisons
               if (s.desktop_last !== null && s.desktop_last !== undefined) {
-                const m = Number(s.desktop_last);
-                if (!isNaN(m) && m >= activeStableMilestone) {
+                const endM = Number(s.desktop_last);
+                if (!isNaN(endM) && endM >= activeStableMilestone) {
                   isGenuinelyActive = true;
                   break;
                 }
