@@ -71,13 +71,12 @@ async function main() {
   // 4. Live Authoritative Origin Trials API feed
   console.log("Fetching live authoritative Google Chrome Origin Trials API payload...");
   try {
-    // Utilizing public discovery key and referrer authorization parameters enforced by live dashboard proxy frames
+    // Utilizing public discovery key with minimal required x-origin authorization header
     const otApiUrl = 'https://content-chromeorigintrials-pa.googleapis.com/v1/trials?prettyPrint=false&key=AIzaSyDNwqPBcgaOul_h00xdxbIlOFiNUYyZCl8';
     const otRes = await fetch(otApiUrl, {
-      referrer: "https://content-chromeorigintrials-pa.googleapis.com/static/proxy.html?usegapi=1&jsh=m%3B%2F_%2Fscs%2Fabc-static%2F_%2Fjs%2Fk%3Dgapi.lb.en.gSqfLc8WnvU.O%2Fd%3D1%2Frs%3DAHpOoo_cXXGArE2dtw6vkGR2NQ_1f5L3AQ%2Fm%3D__features__",
-      method: "GET",
-      mode: "cors",
-      credentials: "omit",
+      headers: {
+        "x-origin": "https://developer.chrome.com"
+      },
       signal: AbortSignal.timeout(30000)
     });
     if (!otRes.ok) {

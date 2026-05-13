@@ -43,6 +43,35 @@ async function main() {
   }
   console.log(`Authoritative current active Stable Release Milestone threshold evaluated as: M${activeStableMilestone}`);
 
+  console.log("Fetching cached Google Chrome Origin Trials API feed metadata to map authoritative live trial configurations...");
+  const otApiActiveFeatureIds = new Set<number>();
+  const otApiActiveTrialNames = new Set<string>();
+  try {
+    const otApiContent = await fs.readFile(path.join(rawDir, 'ot-api-trials.json'), 'utf8');
+    const otApiData = JSON.parse(otApiContent);
+    if (otApiData?.trials && Array.isArray(otApiData.trials)) {
+      for (const trial of otApiData.trials) {
+        if (trial && trial.status === 'ACTIVE' && trial.isPublic === true && trial.enabled === true) {
+          if (typeof trial.originTrialFeatureName === 'string') {
+            otApiActiveTrialNames.add(trial.originTrialFeatureName);
+          }
+          if (typeof trial.chromestatusUrl === 'string') {
+            const match = trial.chromestatusUrl.match(/\/feature\/(\d+)/);
+            if (match && match[1]) {
+              const fid = Number(match[1]);
+              if (!isNaN(fid)) {
+                otApiActiveFeatureIds.add(fid);
+              }
+            }
+          }
+        }
+      }
+    }
+    console.log(`Authoritative Google OT API mapping extracted ${otApiActiveFeatureIds.size} unique feature IDs and ${otApiActiveTrialNames.size} specific trial strings.`);
+  } catch {
+    console.log("Warning: Failed to read cached ot-api-trials.json. Continuing heuristic evaluation paths.");
+  }
+
   for (const f of option1Features) {
     if (f && Number.isInteger(Number(f.id)) && !seenIds.has(f.id)) {
       seenIds.add(f.id);
@@ -61,61 +90,83 @@ async function main() {
       // 3. Future-Scheduled Trials: Experiments mapping `desktop_first` integers targeting future browser releases
       //    hold ending bounds >= stable, but remain hidden from public active dashboard interfaces until launch.
       // 4. Private Evaluations: Confidential partner tests enforce `unlisted: true` and must be safely dropped.
+      // 5. Authoritative OT API Synchronization: If Google's active developer API explicitly tracks a feature ID
+      //    or trial flag string, it provides mathematical confirmation overriding heuristic ambiguities.
       // ==============================================================================
       let isGenuinelyActive = false;
       const statusText = typeof f.browsers?.chrome?.status?.text === 'string' ? f.browsers.chrome.status.text.toLowerCase() : '';
       const intentStage = typeof f.intent_stage === 'string' ? f.intent_stage.toLowerCase() : '';
 
-      // Check 1: Purge shipped, released, unlisted, or dead entities globally
-      const isShippedOrDead = f.is_released === true ||
-                              f.unlisted === true ||
-                              statusText.includes('enabled by default') || 
-                              statusText.includes('shipped') || 
-                              statusText.includes('removed') ||
-                              statusText.includes('no longer pursuing') ||
-                              intentStage.includes('shipped') ||
-                              intentStage.includes('removed');
+      // Check 1: Absolute alignment verification against live Google OT API mappings
+      if (otApiActiveFeatureIds.has(f.id)) {
+        isGenuinelyActive = true;
+      } else if (f.stages && Array.isArray(f.stages)) {
+        for (const s of f.stages) {
+          if (s && s.stage_type === 150 && typeof s.ot_chromium_trial_name === 'string' && otApiActiveTrialNames.has(s.ot_chromium_trial_name)) {
+            isGenuinelyActive = true;
+            break;
+          }
+        }
+      }
 
-      if (!isShippedOrDead) {
-        if (f.stages && Array.isArray(f.stages)) {
-          for (const s of f.stages) {
-            if (s && s.stage_type === 150) {
-              // Check 2: Purge future scheduled trials whose starting milestone surpasses current stable releases
-              const startM = s.desktop_first !== null && s.desktop_first !== undefined ? Number(s.desktop_first) : 0;
-              if (!isNaN(startM) && startM > activeStableMilestone) {
-                continue;
-              }
+      // Check 2: If absent from OT API feeds, evaluate strict empirical scheduling limits
+      if (!isGenuinelyActive) {
+        const isShippedOrDead = f.is_released === true ||
+                                f.unlisted === true ||
+                                statusText.includes('enabled by default') || 
+                                statusText.includes('shipped') || 
+                                statusText.includes('removed') ||
+                                statusText.includes('no longer pursuing') ||
+                                intentStage.includes('shipped') ||
+                                intentStage.includes('removed');
 
-              // Check 3: Validate active trial bounds against live Chromium release threshold parameters
-              if (s.desktop_last !== null && s.desktop_last !== undefined) {
-                const endM = Number(s.desktop_last);
-                if (!isNaN(endM) && endM >= activeStableMilestone) {
-                  isGenuinelyActive = true;
-                  break;
+        if (!isShippedOrDead) {
+          if (f.stages && Array.isArray(f.stages)) {
+            for (const s of f.stages) {
+              if (s && s.stage_type === 150) {
+                const startM = s.desktop_first !== null && s.desktop_first !== undefined ? Number(s.desktop_first) : 0;
+                if (!isNaN(startM) && startM > activeStableMilestone) {
+                  continue;
                 }
-              } else {
-                // Check 4: Handle legacy desktop_last: null defaults safely
-                // Ensure overarching browser status text confirms active experimentation to avoid legacy noise traps.
-                if (statusText.includes('origin trial') || statusText.includes('in development') || f.browsers?.chrome?.origintrial === true) {
-                  isGenuinelyActive = true;
-                  break;
+
+                if (s.desktop_last !== null && s.desktop_last !== undefined) {
+                  const endM = Number(s.desktop_last);
+                  if (!isNaN(endM) && endM >= activeStableMilestone) {
+                    isGenuinelyActive = true;
+                    break;
+                  }
+                } else {
+                  if (statusText.includes('origin trial') || statusText.includes('in development') || f.browsers?.chrome?.origintrial === true) {
+                    isGenuinelyActive = true;
+                    break;
+                  }
                 }
               }
             }
           }
-        }
 
-        // Check 5: Fallback safety override if feature explicitly asserts active trial status
-        if (!isGenuinelyActive && statusText.includes('origin trial')) {
-          const hasCompletedOt = f.stages?.some((s: any) => {
-            if (s.stage_type === 150 && s.desktop_last !== null && s.desktop_last !== undefined) {
-              const m = Number(s.desktop_last);
-              return !isNaN(m) && m < activeStableMilestone;
+          if (!isGenuinelyActive && statusText.includes('origin trial')) {
+            const hasCompletedOt = f.stages?.some((s: any) => {
+              if (s.stage_type === 150 && s.desktop_last !== null && s.desktop_last !== undefined) {
+                const m = Number(s.desktop_last);
+                return !isNaN(m) && m < activeStableMilestone;
+              }
+              return false;
+            });
+            if (!hasCompletedOt) {
+              isGenuinelyActive = true;
             }
-            return false;
-          });
-          if (!hasCompletedOt) {
-            isGenuinelyActive = true;
+          }
+        }
+      }
+
+      // Final validation bound: if Google's OT API feeds were actively extracted but omit this feature,
+      // strictly drop speculative fallback marking to lock output alignment natively.
+      if (isGenuinelyActive && (otApiActiveFeatureIds.size > 0 || otApiActiveTrialNames.size > 0)) {
+        if (!otApiActiveFeatureIds.has(f.id)) {
+          const hasTrialStr = f.stages?.some((s: any) => s.stage_type === 150 && typeof s.ot_chromium_trial_name === 'string' && otApiActiveTrialNames.has(s.ot_chromium_trial_name));
+          if (!hasTrialStr) {
+            isGenuinelyActive = false;
           }
         }
       }
