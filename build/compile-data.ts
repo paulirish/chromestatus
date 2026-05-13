@@ -211,11 +211,20 @@ async function main() {
   const cleanOption2 = option2Features.filter(f => f && Number.isInteger(Number(f.id)));
   cleanOption2.sort((a, b) => Number(a.id) - Number(b.id));
 
+  // Explicit compile-time overrides dictionary correcting upstream ChromeStatus datastore entry anomalies
+  const CUSTOM_WEB_FEATURE_OVERRIDES: Record<number, string> = {
+    // Maps HTML-in-canvas Feature ID directly to its authentic canonical identifier "canvas-html"
+    5172548013916160: "canvas-html"
+  };
+
   // Pre-map web_feature identifiers onto Lite instances for synchronous querying
   // Explicitly filter out unmapped sentinels like "None" or "Missing feature"
   const webFeatureMap = new Map<number, string>();
   for (const f of uniqueOption1) {
-    if (f?.web_feature && typeof f.web_feature === 'string') {
+    const overrideSym = CUSTOM_WEB_FEATURE_OVERRIDES[f.id];
+    if (overrideSym) {
+      webFeatureMap.set(f.id, overrideSym);
+    } else if (f?.web_feature && typeof f.web_feature === 'string') {
       const cleanSym = f.web_feature.trim();
       if (cleanSym !== '' && cleanSym !== 'Missing feature' && cleanSym.toLowerCase() !== 'none') {
         webFeatureMap.set(f.id, cleanSym);

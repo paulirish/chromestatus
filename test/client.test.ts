@@ -105,3 +105,20 @@ test('Origin Trial Expiration Filtering - Purges completed historical legacy exp
     'Interest Invokers completed its Origin Trial in milestone 137. Must evaluate as inactive.'
   );
 });
+
+test('ChromeStatusClient - Static Compilation Overrides Map Integration', async () => {
+  const client = await ChromeStatusClient.create();
+  if (client.features.length === 0) return;
+
+  // Find HTML-in-canvas feature explicitly via its corrected override symbol "canvas-html"
+  const feature = client.findFeature('canvas-html');
+  assert.notEqual(feature, undefined, 'Must resolve target HTML-in-canvas feature record via corrected override symbol');
+  assert.equal(feature?.web_feature, 'canvas-html', 'Output web_feature key must map strictly to override symbol canvas-html');
+
+  // Ensure active Origin Trial extraction helper reflects the overridden key instead of legacy symbol
+  const activeSymbols = client.getActiveOriginTrialWebFeatureIds();
+  if (client.isFeatureInOriginTrial(feature!.id)) {
+    assert.equal(activeSymbols.includes('canvas-html'), true, 'Active OT symbols list must contain corrected key canvas-html');
+    assert.equal(activeSymbols.includes('canvas'), false, 'Active OT symbols list must omit legacy un-overridden symbol canvas');
+  }
+});
