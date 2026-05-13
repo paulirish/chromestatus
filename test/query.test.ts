@@ -84,8 +84,12 @@ test('WebFeature Symbol Querying - Resolves specific requested feature states cl
   const isCanvasOt = activeTrials.some(f => f.id === canvasFeature?.id);
   assert.equal(isCanvasOt, true, 'HTML-in-canvas must be evaluated as actively assigned to an Origin Trial');
 
-  // 2. Query for WebMCP using fuzzy string resolution forwarders
-  const webmcpResults = client.query('declarative-webmcp');
+  // 2. Verify hardened boundaries block unrelated composite noise
+  const noisyResults = client.query('declarative-webmcp');
+  assert.equal(noisyResults.length, 0, 'Hardened query interface must drop records lacking full composite token consensus');
+
+  // Query for WebMCP using exact token strings directly
+  const webmcpResults = client.query('webmcp');
   const webmcpFeature = webmcpResults.find(f => f.id === 5117755740913664 || f.name.toLowerCase().includes('webmcp'));
   assert.notEqual(webmcpFeature, undefined, 'Array output must successfully contain target WebMCP entity record');
 

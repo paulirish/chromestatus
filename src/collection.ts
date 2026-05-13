@@ -220,8 +220,8 @@ export class FeatureCollection implements Iterable<ChromeStatusFeatureStub> {
 
   /**
    * Queries records using friendly web_feature string identifiers first,
-   * gracefully falling back to case-insensitive fuzzy multi-pass token containment.
-   * Returns a complete array of matching feature representations.
+   * gracefully falling back to strict multi-pass case-insensitive token containment.
+   * Returns a complete array of deterministic matching feature representations.
    */
   query(symbolOrName: string): ChromeStatusFeatureStub[] {
     const clean = symbolOrName.trim().toLowerCase();
@@ -242,27 +242,20 @@ export class FeatureCollection implements Iterable<ChromeStatusFeatureStub> {
       }
     }
     
-    // 2. Check if the search query string embeds an exact valid web_feature string
+    // 2. Embedded match heuristic: check if search query embeds a valid web_feature symbol
+    // Strictly mandate web_feature length >= 3 to prevent single-letter overmatching (e.g., symbol "a")
     for (const feature of this.collection.values()) {
-      if (feature.web_feature && feature.web_feature !== 'Missing feature' && clean.includes(feature.web_feature.toLowerCase())) {
+      if (feature.web_feature && feature.web_feature !== 'Missing feature' && feature.web_feature.length >= 3 && clean.includes(feature.web_feature.toLowerCase())) {
         add(feature);
       }
     }
 
-    // 3. Tokenized fuzzy containment heuristic: check if all descriptive tokens match
+    // 3. Strict multi-token containment: verify if ALL descriptive tokens match base feature string properties
     const tokens = clean.split(/[-_\s]+/).filter(t => t.length > 2);
     if (tokens.length) {
       for (const feature of this.collection.values()) {
         const nameLower = feature.name.toLowerCase();
         if (tokens.every(t => nameLower.includes(t))) {
-          add(feature);
-        }
-      }
-
-      // 4. Fallback heuristic: check if any individual token matches unique short symbols/names
-      for (const feature of this.collection.values()) {
-        const nameLower = feature.name.toLowerCase();
-        if (tokens.some(t => nameLower.includes(t) || feature.web_feature?.toLowerCase().includes(t))) {
           add(feature);
         }
       }
