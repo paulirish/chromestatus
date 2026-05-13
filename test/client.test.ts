@@ -78,3 +78,26 @@ test('ChromeStatusClient - Static factory initializer loads snapshot archives dy
     assert.notEqual(verbose, undefined, 'Must resolve granular verbose chunk over local storage paths');
   }
 });
+
+test('Origin Trial Expiration Filtering - Purges completed historical legacy experiments from active maps', async () => {
+  const client = await ChromeStatusClient.create();
+  if (client.features.length === 0) return;
+
+  // Target Feature: "[WebAudio] AudioWorklet" (Feature ID: 4588498229133312)
+  // Upstream trial stage ended in Chrome 65. Must evaluate as completed/inactive.
+  const isAudioWorkletActive = client.isFeatureInOriginTrial(4588498229133312);
+  assert.equal(
+    isAudioWorkletActive, 
+    false, 
+    'AudioWorklet completed its Origin Trial in milestone 65. Must evaluate as inactive.'
+  );
+
+  // Target Feature: "Interest Invokers" (Feature ID: 4530756656562176)
+  // Upstream trial stage ended in Chrome 137. Must evaluate as completed/inactive.
+  const isInterestInvokersActive = client.isFeatureInOriginTrial(4530756656562176);
+  assert.equal(
+    isInterestInvokersActive, 
+    false, 
+    'Interest Invokers completed its Origin Trial in milestone 137. Must evaluate as inactive.'
+  );
+});

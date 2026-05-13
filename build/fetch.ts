@@ -39,14 +39,55 @@ async function main() {
   const uniqueOption1: any[] = [];
   const activeOtIds: number[] = [];
 
+  console.log("Fetching live Chromium release schedule milestone metadata to define current browser release thresholds...");
+  let activeStableMilestone = 148; // robust static default fallback baseline
+  try {
+    const scheduleData = await fetchCleanJson('https://chromiumdash.appspot.com/fetch_milestones');
+    if (Array.isArray(scheduleData)) {
+      const stableObj = scheduleData.find((m: any) => m && m.schedule_phase === 'stable');
+      if (stableObj && typeof stableObj.milestone === 'number') {
+        activeStableMilestone = stableObj.milestone;
+      }
+    }
+  } catch {
+    console.log(`Warning: Failed to fetch dynamic release milestones from Chromium schedule API. Utilizing default baseline stable threshold M${activeStableMilestone}.`);
+  }
+  console.log(`Authoritative current active Stable Release Milestone threshold evaluated as: M${activeStableMilestone}`);
+
   for (const f of option1Features) {
     if (f && f.id && !seenIds.has(f.id)) {
       seenIds.add(f.id);
       uniqueOption1.push(f);
 
-      // Check Origin Trial assignment
-      const hasOtStage = f.stages?.some((s: any) => s.stage_type === 150);
-      if (hasOtStage || f.browsers?.chrome?.origintrial === true) {
+      // Evaluate if feature configures a genuinely active Origin Trial stage timeline
+      let isGenuinelyActive = false;
+      if (f.stages && Array.isArray(f.stages)) {
+        for (const s of f.stages) {
+          if (s && s.stage_type === 150) {
+            // If an ending desktop milestone is declared, verify if it meets or exceeds live release thresholds
+            if (s.desktop_last !== null && s.desktop_last !== undefined) {
+              if (Number(s.desktop_last) >= activeStableMilestone) {
+                isGenuinelyActive = true;
+                break;
+              }
+            } else {
+              // If desktop_last is null/absent, trial schedule limits are open-ended or pending extensions
+              isGenuinelyActive = true;
+              break;
+            }
+          }
+        }
+      }
+
+      // Fallback logic: if browser status text explicitly asserts active trial, check if stages contradict
+      if (!isGenuinelyActive && f.browsers?.chrome?.status?.text?.toLowerCase() === 'origin trial') {
+        const hasCompletedOt = f.stages?.some((s: any) => s.stage_type === 150 && s.desktop_last !== null && Number(s.desktop_last) < activeStableMilestone);
+        if (!hasCompletedOt) {
+          isGenuinelyActive = true;
+        }
+      }
+
+      if (isGenuinelyActive) {
         activeOtIds.push(f.id);
       }
     }
