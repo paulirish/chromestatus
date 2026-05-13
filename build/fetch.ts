@@ -54,6 +54,14 @@ async function main() {
   uniqueOption1.sort((a, b) => Number(a.id) - Number(b.id));
   activeOtIds.sort((a, b) => a - b);
 
+  // Strict Integrity Pre-checks: guarantee downloaded snapshot states are absolute and whole
+  if (totalCount < 3000) {
+    throw new Error(`Integrity validation failed: Reported total feature count (${totalCount}) is below acceptable historical baseline limits.`);
+  }
+  if (uniqueOption1.length !== totalCount) {
+    throw new Error(`Integrity validation failed: Processed granular verbose feature count (${uniqueOption1.length}) does not perfectly equal reported catalog total (${totalCount}). Snapshot mapping is partial or corrupted.`);
+  }
+
   console.log(`Writing ${uniqueOption1.length} granular verbose JSON chunks to data/features/...`);
   for (const f of uniqueOption1) {
     await fs.writeFile(
@@ -87,6 +95,10 @@ async function main() {
     if (webFeatureMap.has(f.id)) {
       f.web_feature = webFeatureMap.get(f.id);
     }
+  }
+
+  if (cleanOption2.length !== totalCount) {
+    throw new Error(`Integrity validation failed: Processed Lite flat record array count (${cleanOption2.length}) does not perfectly equal reported catalog total (${totalCount}). Base list output is partial or corrupted.`);
   }
 
   console.log(`Writing ${cleanOption2.length} flattened base records to data/lite.json...`);
