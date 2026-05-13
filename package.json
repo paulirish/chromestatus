@@ -1,12 +1,12 @@
 {
   "name": "@paulirish/chromestatus",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "type": "module",
   "packageManager": "pnpm@10.30.3",
   "description": "Modern, idiomatic client interface for ChromeStatus feature data",
   "repository": {
     "type": "git",
-    "url": "https://github.com/paulirish/chromestatus"
+    "url": "git+https://github.com/paulirish/chromestatus.git"
   },
   "exports": {
     ".": "./src/index.ts",
