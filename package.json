@@ -2,6 +2,7 @@
   "name": "@paulirish/chromestatus",
   "version": "0.1.0",
   "type": "module",
+  "packageManager": "pnpm@10.30.3",
   "description": "Modern, idiomatic client interface for ChromeStatus feature data",
   "repository": {
     "type": "git",
