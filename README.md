@@ -77,6 +77,10 @@ const activeGraphicsTrials = catalog.features
   .where({ isOriginTrial: true, category: 'Graphics' })
   .toArray();
 
+// Extract clean, deduplicated array of all authoritative web_feature IDs natively
+const activeWebFeatureIds = catalog.getActiveOriginTrialWebFeatureIds();
+console.log(activeWebFeatureIds); // ['canvas', 'webgpu', ...]
+
 // Group arbitrary structural outcomes using native ES2023 Object.groupBy()
 const groupedByCategory = catalog.features.groupBy(f => f.category);
 ```

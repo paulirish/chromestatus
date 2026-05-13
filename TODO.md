@@ -2,7 +2,9 @@
 
 This document tracks planned architectural enhancements to the `@paulirish/chromestatus` client library to harden execution boundaries against upstream schema variations and optimize for AI coding assistant consumption.
 
-## 🛠️ API Evolution Roadmap
+## 🛠️ API Evolution Ideas.
+
+These are just ideas. Not sure about them
 
 - `[ ]` **Embed Absolute Status Getters Directly on Emitted Models**
   - Refactor returned feature objects to expose unambiguous native getters (e.g., `feature.hasActiveOriginTrial`, `feature.isFullyShipped`) to bypass manual collection mapping logic.
@@ -13,25 +15,10 @@ This document tracks planned architectural enhancements to the `@paulirish/chrom
 
 ---
 
-## 🧪 Verification Guidance: Testing Web Feature IDs for Origin Trials
+also...
 
-To test if specific web feature symbols (such as `'canvas'` or fuzzy strings like `'declarative-webmcp'`) are actively assigned to an Origin Trial, clients evaluate target states using pre-compiled collection scopes:
+ ask some subagents to propose some real-world use cases that we can then try out to see if we can provide good answers in a nice idiomatic and clean way.
 
-```typescript
-import { createClient } from '@paulirish/chromestatus';
+ cuz right now the api is trash
 
-async function verifyOriginTrialGating() {
-  const client = await createClient();
-
-  // 1. Query matching feature entries cleanly using multi-pass heuristics
-  const matches = client.query('canvas');
-  const feature = matches[0];
-  if (!feature) return;
-
-  // 2. Verify active Origin Trial assignment directly via collection scope checks
-  const activeTrials = client.features.where({ isOriginTrial: true }).toArray();
-  const hasActiveOt = activeTrials.some(f => f.id === feature.id);
-
-  console.log(`Feature "${feature.name}" Origin Trial Status: ${hasActiveOt}`);
-}
-```
+ 

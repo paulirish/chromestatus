@@ -92,4 +92,8 @@ test('WebFeature Symbol Querying - Resolves specific requested feature states cl
   // Verify Origin Trial assignment state directly
   const isWebmcpOt = activeTrials.some(f => f.id === webmcpFeature?.id);
   assert.equal(isWebmcpOt, true, 'WebMCP configures an active Origin Trial stage parameter natively');
+
+  // 3. Verify top-level active Origin Trial web_feature IDs extraction helper
+  const activeIds = client.getActiveOriginTrialWebFeatureIds();
+  assert.equal(activeIds.includes('canvas'), true, 'Authoritative list of active OT web_feature symbols must include canvas');
 });

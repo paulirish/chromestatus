@@ -281,6 +281,21 @@ export class FeatureCollection implements Iterable<ChromeStatusFeatureStub> {
     return this.collection.size;
   }
 
+  /**
+   * Synchronously extracts a clean, deduplicated array of all valid
+   * web_feature string identifiers currently assigned to an active Origin Trial.
+   */
+  getActiveOriginTrialWebFeatureIds(): string[] {
+    const results = new Set<string>();
+    const activeStubs = this.where({ isOriginTrial: true }).toArray();
+    for (const feature of activeStubs) {
+      if (feature.web_feature && feature.web_feature !== 'Missing feature' && feature.web_feature.trim() !== '') {
+        results.add(feature.web_feature);
+      }
+    }
+    return Array.from(results);
+  }
+
   *[Symbol.iterator](): Iterator<ChromeStatusFeatureStub> {
     yield* this.collection.values();
   }

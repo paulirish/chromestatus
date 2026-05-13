@@ -63,6 +63,11 @@ export class ChromeStatusClient {
     return this.features.query(symbolOrName);
   }
 
+  /** Synchronously extracts all valid web_feature symbols currently assigned to an active Origin Trial */
+  getActiveOriginTrialWebFeatureIds(): string[] {
+    return this.features.getActiveOriginTrialWebFeatureIds();
+  }
+
   /** Flushes localized internal payload state */
   clearCache(): void {
     this.verboseCache.clear();
