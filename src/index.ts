@@ -21,13 +21,13 @@ export class ChromeStatusClient {
   private originTrialIds: Set<number>;
 
   constructor(stubs: ReadonlyArray<ChromeStatusFeatureStub>, activeOriginTrialIds: ReadonlyArray<number> = []) {
-    this.stubs = stubs;
+    this.stubs = Object.freeze(stubs.map(stub => Object.freeze({ ...stub })));
     this.originTrialIds = new Set(activeOriginTrialIds);
     
     this.idMap = new Map();
     this.searchIndex = [];
 
-    for (const stub of stubs) {
+    for (const stub of this.stubs) {
       this.idMap.set(stub.id, stub);
       
       // Enforce consistent lowercase normalization while explicitly filtering out sentinel defaults
