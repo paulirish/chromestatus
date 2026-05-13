@@ -16,6 +16,7 @@
     "node": ">=24.11.0"
   },
   "scripts": {
+    "audit:mappings": "node scripts/print-join-table.ts",
     "fetch": "node build/fetch.ts",
     "preflight": "pnpm test",
     "typecheck": "tsc --noEmit",
