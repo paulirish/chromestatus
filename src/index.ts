@@ -221,8 +221,7 @@ export class ChromeStatusClient {
     try {
       const stub = this.findFeature(query);
       if (!stub) return undefined;
-      const safeFilename = stub.name.replace(/[/\\?%*:|"<>]/g, '-');
-      const chunkUrl = new URL(`../data/features/${safeFilename}.json`, import.meta.url);
+      const chunkUrl = new URL(`../data/features/${stub.id}.json`, import.meta.url);
       const text = await fs.readFile(chunkUrl, 'utf8');
       return JSON.parse(text);
     } catch (err: any) {

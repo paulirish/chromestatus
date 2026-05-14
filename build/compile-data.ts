@@ -298,18 +298,16 @@ async function main() {
     throw new Error(`Integrity validation failed: Processed granular verbose feature count (${uniqueOption1.length}) does not perfectly equal reported catalog total (${totalCount}). Snapshot mapping is partial or corrupted.`);
   }
 
-  console.log(`Writing ${uniqueOption1.length} granular verbose JSON chunks using safe semantic feature name strings concurrently...`);
-  // Remove stale numeric database ID files entirely before serialization to guarantee pristine folder state
+  console.log(`Writing ${uniqueOption1.length} granular verbose JSON chunks using persistent numeric database primary keys concurrently...`);
   await fs.rm(featuresDir, { recursive: true, force: true });
   await fs.mkdir(featuresDir, { recursive: true });
 
   const batchSize = 100;
   for (let i = 0; i < uniqueOption1.length; i += batchSize) {
     const batch = uniqueOption1.slice(i, i + batchSize);
-    await Promise.all(batch.map(f => {
-      const safeFilename = f.name.replace(/[/\\?%*:|"<>]/g, '-');
-      return fs.writeFile(path.join(featuresDir, `${safeFilename}.json`), JSON.stringify(f));
-    }));
+    await Promise.all(batch.map(f => 
+      fs.writeFile(path.join(featuresDir, `${f.id}.json`), JSON.stringify(f))
+    ));
   }
 
   console.log(`Writing ${activeOtIds.length} Active Origin Trial index IDs to data/active-ot-index.json...`);

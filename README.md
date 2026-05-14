@@ -21,15 +21,15 @@ pnpm add @paulirish/chromestatus
 
 ## 🏗️ Architecture & Packaging Strategy
 
-The live API's single feature lookup payload is ~55MB across all active records. To prevent bundle bloat in consumer client applications, this package splits the database at compile time into two isolated layers:
+The live API's single feature lookup payload is ~55MB across all active records. To prevent bundle bloat in consumer client applications, this package splits the database at compile time into isolated layers:
 
 1. **Base Index (`data/lite.json`, ~8.9MB)**:
    * Flattened basic records providing immediate synchronous collection scanning, search filtering, and index setup.
 2. **Granular Feature Chunks (`data/features/<id>.json`, ~20KB each)**:
-   * Individual standalone files containing absolute Option 1 verbosity (full nested `stages` array, extensive web URLs, and customized metrics).
-   * Imported dynamically at runtime via `import()` to ensure absolute bundler tree-shaking efficiency.
-3. **Active OT Map (`data/active-ot-index.json`, ~1KB)**:
-   * Pre-extracted numeric array containing only active Origin Trial IDs for instant evaluation without initializing heavy models.
+   * Individual standalone files containing absolute Option 1 verbosity (full nested `stages` array, extensive web URLs, and customized metrics). Keyed natively on persistent immutable database keys to maximize OS compatibility while remaining fully abstracted from user access layers.
+   * Imported dynamically at runtime via `fs.readFile` to ensure absolute tree-shaking efficiency.
+3. **Gating Maps (`data/active-ot-index.json` & `data/experimental-flag-index.json`)**:
+   * Pre-extracted numeric arrays containing only active Origin Trial or Experimental Flag IDs for instant status verification without initializing heavy models.
 
 ---
 
@@ -46,24 +46,26 @@ async function run() {
   // Instantiates client facade mapping local snapshot layers automatically
   const client = await ChromeStatusClient.create();
 
-  // Locate a feature by exact web_feature symbol, unique ID, or descriptive substring
-  const feature = client.findFeature('canvas');
+  // Locate a feature by exact descriptive string or symbol identifier
+  const feature = client.findFeature('HTML-in-canvas');
   if (!feature) return;
 
-  console.log(`Found feature: ${feature.name} (ID: ${feature.id})`);
-  console.log(`Category: ${feature.category}`);
+  console.log(`Found feature: ${feature.name}`);
+  console.log(`Mapped WebDX Symbol: ${feature.web_feature}`);
 
-  // Synchronously verify active Origin Trial assignment configuration
+  // Synchronously verify runtime configuration gating states
   const isOt = client.isFeatureInOriginTrial(feature.id);
+  const isFlagged = client.isFeatureBehindExperimentalFlag(feature.id);
   console.log(`Is in active Origin Trial: ${isOt}`);
+  console.log(`Is behind Experimental Flag: ${isFlagged}`);
 }
 ```
 
 ---
 
-### 2. Extracting Active Origin Trial Web Feature IDs
+### 2. Interrogating Gated Features (Origin Trials & Experimental Flags)
 
-To retrieve a flat, deduplicated list of all authoritative `web_feature` string symbols associated with active experimental features synchronously:
+To retrieve full active collections or standalone deduplicated string mapping profiles synchronously without risking accounting drop-out for unmapped extensions:
 
 ```typescript
 import { ChromeStatusClient } from '@paulirish/chromestatus';
@@ -71,9 +73,23 @@ import { ChromeStatusClient } from '@paulirish/chromestatus';
 async function run() {
   const client = await ChromeStatusClient.create();
 
-  // Returns array of authoritative identifiers: ['speculation-rules', 'fedcm', 'observable', ...]
-  const activeWebFeatureIds = client.getActiveOriginTrialWebFeatureIds();
-  console.log(activeWebFeatureIds);
+  // --- ACTIVE ORIGIN TRIALS ---
+  // 1. Retrieve array of full record stubs natively (guarantees zero accounting loss)
+  const activeOtStubs = client.getActiveOriginTrials();
+  console.log(`Total active Origin Trial features: ${activeOtStubs.length}`);
+  
+  // 2. Retrieve flat array of strictly mapped canonical WebDX symbols
+  const activeOtSymbols = client.getActiveOriginTrialWebFeatureIds();
+  console.log('Mapped active OT symbols:', activeOtSymbols);
+
+  // --- EXPERIMENTAL WEB PLATFORM FEATURES FLAGS ---
+  // 1. Retrieve array of full record stubs gated behind runtime experimental switches
+  const flagStubs = client.getExperimentalFlagFeatures();
+  console.log(`Total active flagged feature records: ${flagStubs.length}`);
+
+  // 2. Retrieve flat array of strictly mapped canonical WebDX symbols behind flags
+  const flagSymbols = client.getExperimentalFlagWebFeatureIds();
+  console.log('Mapped flagged feature symbols:', flagSymbols);
 }
 ```
 
@@ -95,8 +111,9 @@ async function run() {
   // Group arbitrary collections using native ES2023 Object.groupBy()
   const groupedByCategory = Object.groupBy(client.features, f => f.category);
 
-  // Lazily resolve granular timeline structures (full stages array, custom URLs) over storage boundaries
-  const verboseMetadata = await client.getFeatureDetailed(5172548013916160);
+  // Dynamically resolve granular timeline structures (full stages array, custom URLs) over storage boundaries
+  // Natively supports passing descriptive feature title strings to abstract numeric database IDs entirely
+  const verboseMetadata = await client.getFeatureDetailed('HTML-in-canvas');
   console.log(verboseMetadata?.stages);
 }
 ```
@@ -105,14 +122,19 @@ async function run() {
 
 ## 🛠️ Local Development & Data Synchronization
 
-To synchronize your local project checkout with the latest upstream snapshot states from ChromeStatus.com, run the included compilation pipeline script:
+To synchronize your local project checkout with the latest upstream snapshot states from ChromeStatus.com, execute the integrated compilation pipeline:
 
 ```bash
-# Runs build/fetch.ts directly using current native Node execution engines
+# Sequentially pulls raw API snapshots and compiles optimized data layers
 pnpm run fetch
 ```
 
 ### Available Scripts
-* `pnpm run fetch`: Downloads and compiles Option 1 feature chunks, Option 2 lite indices, and standalone Origin Trial maps into `./data/`.
+* `pnpm run fetch`: Downloads live REST endpoints into `data/raw/` caching layers and compiles production data structures natively.
+* `pnpm run download`: Isolates custom raw snapshot extraction blocks (incorporating proxy authentication configurations).
+* `pnpm run compile`: Operates exclusively on locally cached archives to regenerate mapping indexes rapidly during iterations.
+* `pnpm run audit:ot-symbols`: Outputs dual visual terminal views separating mapped WebDX origin trials from unmapped specific API extensions.
+* `pnpm run audit:flag-symbols`: Outputs segregated inventory views for capabilities gated behind runtime experimental switches.
+* `pnpm run audit:alignment`: Executes highly automated systematic validation probes enforcing absolute baseline schema continuity.
 * `pnpm run typecheck`: Verifies pure erasable syntax type declarations without emitting transpiled outputs.
 * `pnpm run test`: Executes isolated suite runs using native Node test runners (`node --test`).
