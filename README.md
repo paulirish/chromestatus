@@ -73,23 +73,21 @@ import { ChromeStatusClient } from '@paulirish/chromestatus';
 async function run() {
   const client = await ChromeStatusClient.create();
 
-  // --- ACTIVE ORIGIN TRIALS ---
-  // 1. Retrieve array of full record stubs natively (guarantees zero accounting loss)
-  const activeOtStubs = client.getActiveOriginTrials();
-  console.log(`Total active Origin Trial features: ${activeOtStubs.length}`);
+  // --- COMBINED GATED INVENTORY (OT & Flags) ---
+  // Retrieve a combined inventory of all features gated behind Origin Trials or Flags
+  // Includes validation data (baseline year) if available.
+  const inventory = client.getGatedFeaturesInventory();
   
-  // 2. Retrieve flat array of strictly mapped canonical WebDX symbols
-  const activeOtSymbols = client.getActiveOriginTrialWebFeatureIds();
-  console.log('Mapped active OT symbols:', activeOtSymbols);
-
-  // --- EXPERIMENTAL WEB PLATFORM FEATURES FLAGS ---
-  // 1. Retrieve array of full record stubs gated behind runtime experimental switches
-  const flagStubs = client.getExperimentalFlagFeatures();
-  console.log(`Total active flagged feature records: ${flagStubs.length}`);
-
-  // 2. Retrieve flat array of strictly mapped canonical WebDX symbols behind flags
-  const flagSymbols = client.getExperimentalFlagWebFeatureIds();
-  console.log('Mapped flagged feature symbols:', flagSymbols);
+  // Print the first 5 items as an example
+  console.log(inventory.slice(0, 5));
+  
+  // Example output item:
+  // {
+  //   name: 'HTML-in-canvas',
+  //   gatedBy: ['Origin Trial'],
+  //   webFeatureId: 'canvas-html',
+  //   baselineYear: undefined
+  // }
 }
 ```
 
