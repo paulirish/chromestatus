@@ -1,5 +1,6 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { features as webFeatures } from 'web-features';
 
 async function main() {
   const dataDir = path.resolve(process.cwd(), 'data');
@@ -26,6 +27,37 @@ async function main() {
   const seenIds = new Set<number>();
   const uniqueOption1: any[] = [];
   const activeOtIds: number[] = [];
+
+  // Explicit compile-time overrides dictionary correcting upstream ChromeStatus datastore entry anomalies
+  // Keyed by exact descriptive feature name strings to ensure highly readable, self-documenting code maintenance
+  const CUSTOM_WEB_FEATURE_OVERRIDES: Record<string, string> = {
+    // Maps HTML-in-canvas feature directly to its authentic canonical identifier "canvas-html"
+    "HTML-in-canvas": "canvas-html",
+    // Correct upstream datastore typo mapping to canonical identifier
+    "Numeric separators": "numeric-separators",
+    // Migrate deprecated symbol to active canonical target identifier
+    "CSS :open pseudo-class": "open-pseudo"
+  };
+
+  // Internal helper extracting authoritative baseline implementation support year from web-features dictionary
+  function resolveWebFeatureBaselineYear(symbol: string): number | undefined {
+    const webData: any = Object.hasOwn(webFeatures, symbol) ? webFeatures[symbol] : undefined;
+    if (!webData) return undefined;
+
+    let targetData = webData;
+    if (webData.kind === 'moved' && typeof webData.redirect_target === 'string') {
+      targetData = Object.hasOwn(webFeatures, webData.redirect_target) ? webFeatures[webData.redirect_target] : undefined;
+    }
+
+    if (targetData?.status?.baseline_low_date && typeof targetData.status.baseline_low_date === 'string') {
+      const yearStr = targetData.status.baseline_low_date.split('-')[0];
+      const y = parseInt(yearStr, 10);
+      if (!isNaN(y)) return y;
+    }
+    return undefined;
+  }
+
+
 
   console.log("Evaluating release thresholds from cached milestones...");
   let activeStableMilestone = 148; // robust static default fallback baseline
@@ -160,12 +192,25 @@ async function main() {
         }
       }
 
-      // Final validation bound: if Google's OT API feeds were actively extracted but omit this feature,
+      // Final validation bound 1: if Google's OT API feeds were actively extracted but omit this feature,
       // strictly drop speculative fallback marking to lock output alignment natively.
       if (isGenuinelyActive && (otApiActiveFeatureIds.size > 0 || otApiActiveTrialNames.size > 0)) {
         if (!otApiActiveFeatureIds.has(f.id)) {
           const hasTrialStr = f.stages?.some((s: any) => s.stage_type === 150 && typeof s.ot_chromium_trial_name === 'string' && otApiActiveTrialNames.has(s.ot_chromium_trial_name));
           if (!hasTrialStr) {
+            isGenuinelyActive = false;
+          }
+        }
+      }
+
+      // Final validation bound 2: Evaluate absolute calendar baseline support year
+      // If a feature is marked as active but its baseline support threshold landed in a legacy calendar year (< 2024),
+      // it is highly implausible that it remains an active experimental Origin Trial today.
+      if (isGenuinelyActive && f && typeof f.name === 'string') {
+        const targetSym = CUSTOM_WEB_FEATURE_OVERRIDES[f.name.trim()] || (typeof f.web_feature === 'string' ? f.web_feature.trim() : '');
+        if (targetSym) {
+          const baselineYear = resolveWebFeatureBaselineYear(targetSym);
+          if (baselineYear !== undefined && baselineYear < 2024) {
             isGenuinelyActive = false;
           }
         }
@@ -211,16 +256,7 @@ async function main() {
   const cleanOption2 = option2Features.filter(f => f && Number.isInteger(Number(f.id)));
   cleanOption2.sort((a, b) => Number(a.id) - Number(b.id));
 
-  // Explicit compile-time overrides dictionary correcting upstream ChromeStatus datastore entry anomalies
-  // Keyed by exact descriptive feature name strings to ensure highly readable, self-documenting code maintenance
-  const CUSTOM_WEB_FEATURE_OVERRIDES: Record<string, string> = {
-    // Maps HTML-in-canvas feature directly to its authentic canonical identifier "canvas-html"
-    "HTML-in-canvas": "canvas-html",
-    // Correct upstream datastore typo mapping to canonical identifier
-    "Numeric separators": "numeric-separators",
-    // Migrate deprecated symbol to active canonical target identifier
-    "CSS :open pseudo-class": "open-pseudo"
-  };
+
 
   // Pre-map web_feature identifiers onto Lite instances for synchronous querying
   // Explicitly filter out unmapped sentinels like "None" or "Missing feature"
