@@ -27,6 +27,7 @@ async function main() {
   const seenIds = new Set<number>();
   const uniqueOption1: any[] = [];
   const activeOtIds: number[] = [];
+  const experimentalFlagIds: number[] = [];
 
   // Explicit compile-time overrides dictionary correcting upstream ChromeStatus datastore entry anomalies
   // Keyed by exact descriptive feature name strings to ensure highly readable, self-documenting code maintenance
@@ -228,10 +229,49 @@ async function main() {
       if (isGenuinelyActive) {
         activeOtIds.push(f.id);
       }
+
+      // ==============================================================================
+      // EXPERIMENTAL WEB PLATFORM FEATURES FLAG GATING EVALUATION & VALIDATION
+      // ==============================================================================
+      // Evaluates items configured behind active developer trial flag switches
+      let isBehindFlag = false;
+      if (f.browsers?.chrome?.flag === true || statusText.includes('behind a flag')) {
+        isBehindFlag = true;
+      }
+
+      // Validate flag list: explicitly drop universally shipped or legacy baseline standard features
+      if (isBehindFlag) {
+        // Omit global f.is_released check to prevent overly aggressive masking of valid incubation features
+        const isShippedOrDead = f.unlisted === true ||
+                                statusText.includes('enabled by default') || 
+                                statusText.includes('shipped') || 
+                                statusText.includes('removed') ||
+                                statusText.includes('no longer pursuing') ||
+                                intentStage.includes('shipped') ||
+                                intentStage.includes('removed');
+
+        if (isShippedOrDead) {
+          isBehindFlag = false;
+        } else if (f && typeof f.name === 'string') {
+          const targetSym = CUSTOM_WEB_FEATURE_OVERRIDES[f.name.trim()] || (typeof f.web_feature === 'string' ? f.web_feature.trim() : '');
+          if (targetSym) {
+            const baselineYear = resolveWebFeatureBaselineYear(targetSym);
+            if (baselineYear !== undefined && baselineYear < 2024) {
+              // Highly implausible that an ancient standard remains exclusively behind an experimental flag today
+              isBehindFlag = false;
+            }
+          }
+        }
+      }
+
+      if (isBehindFlag) {
+        experimentalFlagIds.push(f.id);
+      }
     }
   }
   uniqueOption1.sort((a, b) => Number(a.id) - Number(b.id));
   activeOtIds.sort((a, b) => a - b);
+  experimentalFlagIds.sort((a, b) => a - b);
 
   // Systematic Title Disambiguation Phase: ensure f.name is entirely unique across the complete catalog set
   // Appends intuitive semantic phase qualifiers to colliding base names to suppress forbidden numerical IDs natively
@@ -276,6 +316,12 @@ async function main() {
   await fs.writeFile(
     path.join(dataDir, 'active-ot-index.json'),
     JSON.stringify(activeOtIds)
+  );
+
+  console.log(`Writing ${experimentalFlagIds.length} Experimental Flag index IDs to data/experimental-flag-index.json...`);
+  await fs.writeFile(
+    path.join(dataDir, 'experimental-flag-index.json'),
+    JSON.stringify(experimentalFlagIds)
   );
 
   console.log("\nProcessing Lite array data from cache...");

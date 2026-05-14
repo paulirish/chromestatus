@@ -19,10 +19,16 @@ export class ChromeStatusClient {
   private idMap: Map<number, Readonly<ChromeStatusFeatureStub>>;
   private searchIndex: SearchIndexRecord[];
   private originTrialIds: Set<number>;
+  private experimentalFlagIds: Set<number>;
 
-  constructor(stubs: ReadonlyArray<ChromeStatusFeatureStub>, activeOriginTrialIds: ReadonlyArray<number> = []) {
+  constructor(
+    stubs: ReadonlyArray<ChromeStatusFeatureStub>, 
+    activeOriginTrialIds: ReadonlyArray<number> = [],
+    experimentalFlagIds: ReadonlyArray<number> = []
+  ) {
     this.stubs = Object.freeze(stubs.map(stub => Object.freeze({ ...stub })));
     this.originTrialIds = new Set(activeOriginTrialIds);
+    this.experimentalFlagIds = new Set(experimentalFlagIds);
     
     this.idMap = new Map();
     this.searchIndex = [];
@@ -52,11 +58,13 @@ export class ChromeStatusClient {
   static async create(): Promise<ChromeStatusClient> {
     const liteUrl = new URL('../data/lite.json', import.meta.url);
     const otUrl = new URL('../data/active-ot-index.json', import.meta.url);
+    const flagUrl = new URL('../data/experimental-flag-index.json', import.meta.url);
 
     // Concurrent hydration pipeline without swallowing operational file loading/parsing anomalies
-    const [liteText, otText] = await Promise.all([
+    const [liteText, otText, flagText] = await Promise.all([
       fs.readFile(liteUrl, 'utf8'),
-      fs.readFile(otUrl, 'utf8')
+      fs.readFile(otUrl, 'utf8'),
+      fs.readFile(flagUrl, 'utf8').catch(() => '[]') // gracefully initialize empty array if flag index cache is un-built
     ]);
 
     const parsedStubs: unknown = JSON.parse(liteText);
@@ -69,7 +77,14 @@ export class ChromeStatusClient {
       throw new Error("Client initialization failed: data/active-ot-index.json is malformed.");
     }
 
-    return new ChromeStatusClient(parsedStubs as ReadonlyArray<ChromeStatusFeatureStub>, parsedOts as ReadonlyArray<number>);
+    const parsedFlags: unknown = JSON.parse(flagText);
+    const flagArray = Array.isArray(parsedFlags) ? parsedFlags : [];
+
+    return new ChromeStatusClient(
+      parsedStubs as ReadonlyArray<ChromeStatusFeatureStub>, 
+      parsedOts as ReadonlyArray<number>,
+      flagArray as ReadonlyArray<number>
+    );
   }
 
   /**
@@ -132,6 +147,13 @@ export class ChromeStatusClient {
   }
 
   /**
+   * Evaluates whether a specific feature ID is actively configured behind an Experimental Web Platform features runtime flag.
+   */
+  isFeatureBehindExperimentalFlag(id: number): boolean {
+    return this.experimentalFlagIds.has(id);
+  }
+
+  /**
    * Extracts a clean, lowercased, deduplicated array of all valid web_feature string identifiers
    * currently assigned to active experimental Origin Trials.
    */
@@ -147,12 +169,42 @@ export class ChromeStatusClient {
   }
 
   /**
+   * Extracts a clean, lowercased, deduplicated array of all valid web_feature string identifiers
+   * currently assigned behind an active Experimental Web Platform features runtime flag.
+   */
+  getExperimentalFlagWebFeatureIds(): string[] {
+    const results = new Set<string>();
+    for (const id of this.experimentalFlagIds) {
+      const record = this.searchIndex.find(r => r.id === id);
+      if (record?.symbol) {
+        results.add(record.symbol);
+      }
+    }
+    return Array.from(results);
+  }
+
+  /**
    * Returns the complete, un-truncated array of all authentic active Origin Trial feature records.
    * Guarantees zero accounting loss for highly specific experimental capabilities lacking mapped string symbols.
    */
   getActiveOriginTrials(): ReadonlyArray<ChromeStatusFeatureStub> {
     const results: ChromeStatusFeatureStub[] = [];
     for (const id of this.originTrialIds) {
+      const record = this.searchIndex.find(r => r.id === id);
+      if (record) {
+        results.push(record.stub);
+      }
+    }
+    return results;
+  }
+
+  /**
+   * Returns the complete, un-truncated array of all feature records actively gated behind runtime experimental flag switches.
+   * Guarantees zero accounting loss for unmapped granular platform feature extensions.
+   */
+  getExperimentalFlagFeatures(): ReadonlyArray<ChromeStatusFeatureStub> {
+    const results: ChromeStatusFeatureStub[] = [];
+    for (const id of this.experimentalFlagIds) {
       const record = this.searchIndex.find(r => r.id === id);
       if (record) {
         results.push(record.stub);

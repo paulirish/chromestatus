@@ -47,7 +47,7 @@ test('ChromeStatusClient - Synchronous querying and Origin Trial indexing valida
     }
   ];
 
-  const client = new ChromeStatusClient(mockStubs, [5172548013916160, 5117755740913664]);
+  const client = new ChromeStatusClient(mockStubs, [5172548013916160, 5117755740913664], [5117755740913664]);
 
   // 1. Find HTML-in-canvas via exact/embedded symbol or fuzzy heuristics
   const canvasFeature = client.findFeature('canvas-html');
@@ -62,6 +62,7 @@ test('ChromeStatusClient - Synchronous querying and Origin Trial indexing valida
   assert.equal(webmcpFeature?.name, 'WebMCP');
 
   assert.equal(client.isFeatureInOriginTrial(webmcpFeature!.id), true);
+  assert.equal(client.isFeatureBehindExperimentalFlag(webmcpFeature!.id), true);
 
   // 3. Verify top-level active Origin Trial web_feature IDs extraction helper
   const activeIds = client.getActiveOriginTrialWebFeatureIds();
@@ -71,6 +72,12 @@ test('ChromeStatusClient - Synchronous querying and Origin Trial indexing valida
   const activeStubs = client.getActiveOriginTrials();
   assert.equal(activeStubs.length, 2, 'getActiveOriginTrials must faithfully return all active feature objects natively');
   assert.equal(activeStubs[0].name, 'HTML-in-canvas', 'Output collection entry matches authoritative descriptive feature name string');
+
+  // 5. Verify Experimental Flag gating SDK retrieval interfaces
+  const flagSymbols = client.getExperimentalFlagWebFeatureIds();
+  const flagStubs = client.getExperimentalFlagFeatures();
+  assert.equal(flagStubs.length, 1, 'getExperimentalFlagFeatures returns full un-truncated flag objects set natively');
+  assert.equal(flagStubs[0].name, 'WebMCP');
 });
 
 test('ChromeStatusClient - Static factory initializer loads snapshot archives dynamically', async () => {
