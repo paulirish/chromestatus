@@ -66,6 +66,11 @@ test('ChromeStatusClient - Synchronous querying and Origin Trial indexing valida
   // 3. Verify top-level active Origin Trial web_feature IDs extraction helper
   const activeIds = client.getActiveOriginTrialWebFeatureIds();
   assert.equal(activeIds.includes('canvas'), true, 'Active OT web_feature list must include canvas');
+
+  // 4. Verify complete un-truncated active feature objects accounting retrieval
+  const activeStubs = client.getActiveOriginTrials();
+  assert.equal(activeStubs.length, 2, 'getActiveOriginTrials must faithfully return all active feature objects natively');
+  assert.equal(activeStubs[0].id, 5172548013916160);
 });
 
 test('ChromeStatusClient - Static factory initializer loads snapshot archives dynamically', async () => {

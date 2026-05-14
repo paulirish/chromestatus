@@ -147,6 +147,21 @@ export class ChromeStatusClient {
   }
 
   /**
+   * Returns the complete, un-truncated array of all authentic active Origin Trial feature records.
+   * Guarantees zero accounting loss for highly specific experimental capabilities lacking mapped string symbols.
+   */
+  getActiveOriginTrials(): ReadonlyArray<ChromeStatusFeatureStub> {
+    const results: ChromeStatusFeatureStub[] = [];
+    for (const id of this.originTrialIds) {
+      const record = this.searchIndex.find(r => r.id === id);
+      if (record) {
+        results.push(record.stub);
+      }
+    }
+    return results;
+  }
+
+  /**
    * Resolves absolute verbose single-feature chunk file metadata over local storage pathways dynamically.
    * Intercepts explicit targeted lookup exceptions cleanly while bubbling operational infrastructure/syntax failures.
    */
