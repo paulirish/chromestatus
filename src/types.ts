@@ -100,6 +100,7 @@ export interface ChromeStatusFeatureStub {
   category: string;
   category_int?: number;
   web_feature?: string | null;
+  baseline_year?: number;
   blink_components: string[];
   star_count: number;
   is_released: boolean;

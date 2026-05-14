@@ -351,10 +351,18 @@ async function main() {
 
   for (const f of cleanOption2) {
     if (webFeatureMap.has(f.id)) {
-      f.web_feature = webFeatureMap.get(f.id);
+      const sym = webFeatureMap.get(f.id);
+      f.web_feature = sym;
+      if (sym) {
+        const year = resolveWebFeatureBaselineYear(sym);
+        if (year !== undefined) {
+          f.baseline_year = year;
+        }
+      }
     } else {
       // Strip pre-existing unmapped/stale keys to enforce consistency
       delete f.web_feature;
+      delete f.baseline_year;
     }
   }
 

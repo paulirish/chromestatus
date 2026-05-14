@@ -214,6 +214,47 @@ export class ChromeStatusClient {
   }
 
   /**
+   * Returns a combined inventory of all features gated behind Origin Trials or Experimental Flags,
+   * including validation data (baseline year) if available.
+   */
+  getGatedFeaturesInventory(): Array<{
+    name: string;
+    gatedBy: string[];
+    webFeatureId?: string;
+    baselineYear?: number;
+  }> {
+    const otStubs = this.getActiveOriginTrials();
+    const flagStubs = this.getExperimentalFlagFeatures();
+
+    const allGated = new Map<string, { name: string, gatedBy: string[], webFeatureId?: string, baselineYear?: number }>();
+
+    for (const f of otStubs) {
+      allGated.set(f.name, { 
+        name: f.name, 
+        gatedBy: ['Origin Trial'], 
+        webFeatureId: f.web_feature || undefined, 
+        baselineYear: f.baseline_year 
+      });
+    }
+
+    for (const f of flagStubs) {
+      const existing = allGated.get(f.name);
+      if (existing) {
+        existing.gatedBy.push('Experimental Flag');
+      } else {
+        allGated.set(f.name, { 
+          name: f.name, 
+          gatedBy: ['Experimental Flag'], 
+          webFeatureId: f.web_feature || undefined, 
+          baselineYear: f.baseline_year 
+        });
+      }
+    }
+
+    return Array.from(allGated.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  /**
    * Resolves absolute verbose single-feature chunk file metadata over local storage pathways dynamically.
    * Intercepts explicit targeted lookup exceptions cleanly while bubbling operational infrastructure/syntax failures.
    */
