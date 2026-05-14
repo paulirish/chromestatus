@@ -79,7 +79,7 @@ test('ChromeStatusClient - Static factory initializer loads snapshot archives dy
   if (client.features.length > 0) {
     assert.equal(client.features.length > 3000, true, 'Compiled catalog array size must exceed baseline bounds');
     
-    const verbose = await client.getFeatureDetailed(client.features[0].id);
+    const verbose = await client.getFeatureDetailed(client.features[0].name);
     assert.notEqual(verbose, undefined, 'Must resolve granular verbose chunk over local storage paths');
   }
 });

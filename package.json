@@ -1,6 +1,6 @@
 {
   "name": "@paulirish/chromestatus",
-  "version": "0.1.20",
+  "version": "0.1.21",
   "type": "module",
   "packageManager": "pnpm@10.30.3",
   "description": "Modern, idiomatic client interface for ChromeStatus feature data",

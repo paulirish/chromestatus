@@ -147,7 +147,7 @@ test('RedTeam Audit: Multi-Mapping Cardinality Retention & Search Consensus', ()
 test('RedTeam Audit: Malformed Payload Exception Propagation', async () => {
   const client = new ChromeStatusClient([]);
   // Expecting read logic mapping unresolvable/corrupted offline files to bubble critical OS errors natively
-  // To verify deterministic error handling, passing an unresolvable chunk integer ID
-  const unresolvable = await client.getFeatureDetailed(999999999);
+  // To verify deterministic error handling, passing an unresolvable descriptive feature title string
+  const unresolvable = await client.getFeatureDetailed("Unresolvable Hacked Title String");
   assert.equal(unresolvable, undefined, 'Absent offline feature file targets evaluate as undefined cleanly');
 });

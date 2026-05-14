@@ -165,9 +165,12 @@ export class ChromeStatusClient {
    * Resolves absolute verbose single-feature chunk file metadata over local storage pathways dynamically.
    * Intercepts explicit targeted lookup exceptions cleanly while bubbling operational infrastructure/syntax failures.
    */
-  async getFeatureDetailed(id: number): Promise<ChromeStatusFeatureDetailed | undefined> {
+  async getFeatureDetailed(query: string | number): Promise<ChromeStatusFeatureDetailed | undefined> {
     try {
-      const chunkUrl = new URL(`../data/features/${id}.json`, import.meta.url);
+      const stub = this.findFeature(query);
+      if (!stub) return undefined;
+      const safeFilename = stub.name.replace(/[/\\?%*:|"<>]/g, '-');
+      const chunkUrl = new URL(`../data/features/${safeFilename}.json`, import.meta.url);
       const text = await fs.readFile(chunkUrl, 'utf8');
       return JSON.parse(text);
     } catch (err: any) {

@@ -231,6 +231,23 @@ async function main() {
   uniqueOption1.sort((a, b) => Number(a.id) - Number(b.id));
   activeOtIds.sort((a, b) => a - b);
 
+  // Systematic Title Disambiguation Phase: ensure f.name is entirely unique across the complete catalog set
+  // Appends intuitive semantic phase qualifiers to colliding base names to suppress forbidden numerical IDs natively
+  const seenNames = new Set<string>();
+  for (const f of uniqueOption1) {
+    if (f && typeof f.name === 'string') {
+      let cleanName = f.name.trim();
+      const baseName = cleanName;
+      let counter = 2;
+      while (seenNames.has(cleanName.toLowerCase())) {
+        cleanName = `${baseName} (Phase ${counter})`;
+        counter++;
+      }
+      seenNames.add(cleanName.toLowerCase());
+      f.name = cleanName;
+    }
+  }
+
   // Strict Integrity Pre-checks: guarantee downloaded snapshot states are absolute and whole
   if (totalCount < 3000) {
     throw new Error(`Integrity validation failed: Reported total feature count (${totalCount}) is below acceptable historical baseline limits.`);
@@ -239,14 +256,18 @@ async function main() {
     throw new Error(`Integrity validation failed: Processed granular verbose feature count (${uniqueOption1.length}) does not perfectly equal reported catalog total (${totalCount}). Snapshot mapping is partial or corrupted.`);
   }
 
-  console.log(`Writing ${uniqueOption1.length} granular verbose JSON chunks concurrently in bounded batches...`);
-  // Batched execution limiting file descriptor pressuring while maximizing IO multi-threading speed
+  console.log(`Writing ${uniqueOption1.length} granular verbose JSON chunks using safe semantic feature name strings concurrently...`);
+  // Remove stale numeric database ID files entirely before serialization to guarantee pristine folder state
+  await fs.rm(featuresDir, { recursive: true, force: true });
+  await fs.mkdir(featuresDir, { recursive: true });
+
   const batchSize = 100;
   for (let i = 0; i < uniqueOption1.length; i += batchSize) {
     const batch = uniqueOption1.slice(i, i + batchSize);
-    await Promise.all(batch.map(f => 
-      fs.writeFile(path.join(featuresDir, `${f.id}.json`), JSON.stringify(f))
-    ));
+    await Promise.all(batch.map(f => {
+      const safeFilename = f.name.replace(/[/\\?%*:|"<>]/g, '-');
+      return fs.writeFile(path.join(featuresDir, `${safeFilename}.json`), JSON.stringify(f));
+    }));
   }
 
   console.log(`Writing ${activeOtIds.length} Active Origin Trial index IDs to data/active-ot-index.json...`);
