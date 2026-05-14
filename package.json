@@ -1,6 +1,6 @@
 {
   "name": "@paulirish/chromestatus",
-  "version": "0.1.13",
+  "version": "0.1.14",
   "type": "module",
   "packageManager": "pnpm@10.30.3",
   "description": "Modern, idiomatic client interface for ChromeStatus feature data",
@@ -16,6 +16,7 @@
     "node": ">=24.11.0"
   },
   "scripts": {
+    "audit:alignment": "node scripts/audit-web-features-alignment.ts",
     "audit:mappings": "node scripts/print-join-table.ts",
     "audit:ot-symbols": "node scripts/print-active-ot-symbols.ts",
     "compile": "node build/compile-data.ts",

@@ -215,7 +215,11 @@ async function main() {
   // Keyed by exact descriptive feature name strings to ensure highly readable, self-documenting code maintenance
   const CUSTOM_WEB_FEATURE_OVERRIDES: Record<string, string> = {
     // Maps HTML-in-canvas feature directly to its authentic canonical identifier "canvas-html"
-    "HTML-in-canvas": "canvas-html"
+    "HTML-in-canvas": "canvas-html",
+    // Correct upstream datastore typo mapping to canonical identifier
+    "Numeric separators": "numeric-separators",
+    // Migrate deprecated symbol to active canonical target identifier
+    "CSS :open pseudo-class": "open-pseudo"
   };
 
   // Pre-map web_feature identifiers onto Lite instances for synchronous querying
