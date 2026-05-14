@@ -36,7 +36,9 @@ async function main() {
     // Correct upstream datastore typo mapping to canonical identifier
     "Numeric separators": "numeric-separators",
     // Migrate deprecated symbol to active canonical target identifier
-    "CSS :open pseudo-class": "open-pseudo"
+    "CSS :open pseudo-class": "open-pseudo",
+    // Map experimental prompt API parameters onto authentic verified base symbol
+    "Prompt API Sampling Parameters": "languagemodel"
   };
 
   // Internal helper extracting authoritative baseline implementation support year from web-features dictionary
