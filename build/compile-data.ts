@@ -38,7 +38,24 @@ async function main() {
     // Migrate deprecated symbol to active canonical target identifier
     "CSS :open pseudo-class": "open-pseudo",
     // Map experimental prompt API parameters onto authentic verified base symbol
-    "Prompt API Sampling Parameters": "languagemodel"
+    "Prompt API Sampling Parameters": "languagemodel",
+    // Integrate Web Platform Advisor discoveries mapping active experimental Origin Trials lacking database strings
+    "Declarative CSS module scripts": "css-modules",
+    "Enhanced Canvas TextMetrics": "canvas-2d",
+    "Digital Credentials API (issuance support)": "digital-credentials",
+    "Container Timing": "element-timing",
+    "Incoming Call Notifications": "notifications",
+    "Prerendering cross-origin iframes": "speculation-rules",
+    "Autofill event": "autofill",
+    "Proofreader API": "languagemodel",
+    "Connection Allowlists": "fetch",
+    "CPU Performance API": "compute-pressure",
+    "Permissions Policy: focus-without-user-activation": "permissions-policy",
+    "Shared Array Buffers, Atomics and Futex APIs": "shared-memory",
+    "SoftNavigation performance entry": "performance",
+    "Long Animation Frames style duration": "long-animation-frames",
+    "Gamepad Event-Driven Input API": "gamepad",
+    "WebAssembly Custom Descriptors": "wasm"
   };
 
   // Internal helper extracting authoritative baseline implementation support year from web-features dictionary
