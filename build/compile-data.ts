@@ -43,7 +43,9 @@ async function main() {
     "Web app HTML install element": "install",
     "Digital Credentials API (issuance support)": "digital-credentials",
     "Prerendering cross-origin iframes": "speculation-rules",
-    "Proofreader API": "languagemodel"
+    "Proofreader API": "languagemodel",
+    // Connect proposed WebMCP incubation directly to authoritative dictionary capability string
+    "WebMCP": "navigator-modelcontext"
   };
 
   // Internal helper extracting authoritative baseline implementation support year from web-features dictionary

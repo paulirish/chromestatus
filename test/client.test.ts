@@ -126,4 +126,9 @@ test('ChromeStatusClient - Static Compilation Overrides Map Integration', async 
     assert.equal(activeSymbols.includes('canvas-html'), true, 'Active OT symbols list must contain corrected key canvas-html');
     assert.equal(activeSymbols.includes('canvas'), false, 'Active OT symbols list must omit legacy un-overridden symbol canvas');
   }
+
+  // Find WebMCP feature explicitly via its corrected override capability symbol "navigator-modelcontext"
+  const webmcpOverride = client.findFeature('navigator-modelcontext');
+  assert.notEqual(webmcpOverride, undefined, 'Must resolve proposed WebMCP feature record via corrected override capability symbol');
+  assert.equal(webmcpOverride?.web_feature, 'navigator-modelcontext');
 });
