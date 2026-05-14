@@ -212,22 +212,25 @@ async function main() {
   cleanOption2.sort((a, b) => Number(a.id) - Number(b.id));
 
   // Explicit compile-time overrides dictionary correcting upstream ChromeStatus datastore entry anomalies
-  const CUSTOM_WEB_FEATURE_OVERRIDES: Record<number, string> = {
-    // Maps HTML-in-canvas Feature ID directly to its authentic canonical identifier "canvas-html"
-    5172548013916160: "canvas-html"
+  // Keyed by exact descriptive feature name strings to ensure highly readable, self-documenting code maintenance
+  const CUSTOM_WEB_FEATURE_OVERRIDES: Record<string, string> = {
+    // Maps HTML-in-canvas feature directly to its authentic canonical identifier "canvas-html"
+    "HTML-in-canvas": "canvas-html"
   };
 
   // Pre-map web_feature identifiers onto Lite instances for synchronous querying
   // Explicitly filter out unmapped sentinels like "None" or "Missing feature"
   const webFeatureMap = new Map<number, string>();
   for (const f of uniqueOption1) {
-    const overrideSym = CUSTOM_WEB_FEATURE_OVERRIDES[f.id];
-    if (overrideSym) {
-      webFeatureMap.set(f.id, overrideSym);
-    } else if (f?.web_feature && typeof f.web_feature === 'string') {
-      const cleanSym = f.web_feature.trim();
-      if (cleanSym !== '' && cleanSym !== 'Missing feature' && cleanSym.toLowerCase() !== 'none') {
-        webFeatureMap.set(f.id, cleanSym);
+    if (f && typeof f.name === 'string') {
+      const overrideSym = CUSTOM_WEB_FEATURE_OVERRIDES[f.name.trim()];
+      if (overrideSym) {
+        webFeatureMap.set(f.id, overrideSym);
+      } else if (f.web_feature && typeof f.web_feature === 'string') {
+        const cleanSym = f.web_feature.trim();
+        if (cleanSym !== '' && cleanSym !== 'Missing feature' && cleanSym.toLowerCase() !== 'none') {
+          webFeatureMap.set(f.id, cleanSym);
+        }
       }
     }
   }
