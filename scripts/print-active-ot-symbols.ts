@@ -20,7 +20,7 @@ async function main() {
   
   console.log(`[Section 2]: Unmapped Granular Platform Extensions (${unmappedRecords.length} specific ChromeStatus proposals currently lacking dedicated WebDX shortcodes):\n`);
   for (const f of unmappedRecords) {
-    console.log(`- ${f.name} (ID: ${f.id})`);
+    console.log(`- ${f.name}`);
   }
 }
 

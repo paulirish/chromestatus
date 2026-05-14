@@ -70,7 +70,7 @@ test('ChromeStatusClient - Synchronous querying and Origin Trial indexing valida
   // 4. Verify complete un-truncated active feature objects accounting retrieval
   const activeStubs = client.getActiveOriginTrials();
   assert.equal(activeStubs.length, 2, 'getActiveOriginTrials must faithfully return all active feature objects natively');
-  assert.equal(activeStubs[0].id, 5172548013916160);
+  assert.equal(activeStubs[0].name, 'HTML-in-canvas', 'Output collection entry matches authoritative descriptive feature name string');
 });
 
 test('ChromeStatusClient - Static factory initializer loads snapshot archives dynamically', async () => {
