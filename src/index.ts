@@ -38,16 +38,24 @@ export class ChromeStatusClient {
       
       // Enforce consistent lowercase normalization while explicitly filtering out sentinel defaults
       const rawSym = stub.web_feature?.trim();
-      const symbol = rawSym && rawSym !== 'Missing feature' && rawSym.toLowerCase() !== 'none'
-        ? rawSym.toLowerCase() 
-        : undefined;
+      const symbols = rawSym && rawSym !== 'Missing feature' && rawSym.toLowerCase() !== 'none'
+        ? rawSym.toLowerCase().split(',').map(s => s.trim()).filter(Boolean)
+        : [];
 
-      this.searchIndex.push({
-        id: stub.id,
-        symbol,
-        stub
-        // nameTokens array remains unallocated on the heap until specifically requested during free-text query searches
-      });
+      if (symbols.length > 0) {
+        for (const symbol of symbols) {
+          this.searchIndex.push({
+            id: stub.id,
+            symbol,
+            stub
+          });
+        }
+      } else {
+        this.searchIndex.push({
+          id: stub.id,
+          stub
+        });
+      }
     }
   }
 

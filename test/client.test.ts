@@ -137,5 +137,10 @@ test('ChromeStatusClient - Static Compilation Overrides Map Integration', async 
   // Find WebMCP feature explicitly via its corrected override capability symbol "navigator-modelcontext"
   const webmcpOverride = client.findFeature('navigator-modelcontext');
   assert.notEqual(webmcpOverride, undefined, 'Must resolve proposed WebMCP feature record via corrected override capability symbol');
-  assert.equal(webmcpOverride?.web_feature, 'navigator-modelcontext');
+  assert.equal(webmcpOverride?.web_feature, 'declarative-webmcp,navigator-modelcontext');
+
+  // Also find it via the new "declarative-webmcp" symbol
+  const webmcpOverride2 = client.findFeature('declarative-webmcp');
+  assert.notEqual(webmcpOverride2, undefined, 'Must resolve proposed WebMCP feature record via new declarative-webmcp symbol');
+  assert.equal(webmcpOverride2?.id, webmcpOverride?.id);
 });

@@ -46,7 +46,7 @@ async function main() {
     "Prerendering cross-origin iframes": "speculation-rules",
     "Proofreader API": "languagemodel",
     // Connect proposed WebMCP incubation directly to authoritative dictionary capability string
-    "WebMCP": "navigator-modelcontext"
+    "WebMCP": "declarative-webmcp,navigator-modelcontext"
   };
 
   // Internal helper extracting authoritative baseline implementation support year from web-features dictionary
@@ -354,9 +354,18 @@ async function main() {
       const sym = webFeatureMap.get(f.id);
       f.web_feature = sym;
       if (sym) {
-        const year = resolveWebFeatureBaselineYear(sym);
-        if (year !== undefined) {
-          f.baseline_year = year;
+        const syms = sym.split(',').map(s => s.trim()).filter(Boolean);
+        let maxYear: number | undefined = undefined;
+        for (const s of syms) {
+          const year = resolveWebFeatureBaselineYear(s);
+          if (year !== undefined) {
+            if (maxYear === undefined || year > maxYear) {
+              maxYear = year;
+            }
+          }
+        }
+        if (maxYear !== undefined) {
+          f.baseline_year = maxYear;
         }
       }
     } else {

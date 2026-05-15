@@ -25,7 +25,7 @@ async function main() {
     "Digital Credentials API (issuance support)": "digital-credentials",
     "Prerendering cross-origin iframes": "speculation-rules",
     "Proofreader API": "languagemodel",
-    "WebMCP": "navigator-modelcontext"
+    "WebMCP": "declarative-webmcp,navigator-modelcontext"
   };
 
   // Systematic Title Disambiguation logic matching compile-data.ts
