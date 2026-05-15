@@ -306,7 +306,7 @@ async function main() {
   for (let i = 0; i < uniqueOption1.length; i += batchSize) {
     const batch = uniqueOption1.slice(i, i + batchSize);
     await Promise.all(batch.map(f => 
-      fs.writeFile(path.join(featuresDir, `${f.id}.json`), JSON.stringify(f))
+      fs.writeFile(path.join(featuresDir, `${f.id}.json`), JSON.stringify(f, null, 2))
     ));
   }
 
@@ -373,7 +373,7 @@ async function main() {
   console.log(`Writing ${cleanOption2.length} flattened base records to data/lite.json...`);
   await fs.writeFile(
     path.join(dataDir, 'lite.json'),
-    JSON.stringify(cleanOption2)
+    JSON.stringify(cleanOption2, null, 2)
   );
 
   console.log("\nData compilation complete.");

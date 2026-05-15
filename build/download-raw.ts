@@ -42,7 +42,7 @@ async function main() {
   
   await fs.writeFile(
     path.join(rawDir, 'features-verbose.json'),
-    JSON.stringify({ total_count: totalCount, features: verboseFeatures })
+    JSON.stringify({ total_count: totalCount, features: verboseFeatures }, null, 2)
   );
   console.log(`Saved raw verbose features to data/raw/features-verbose.json`);
 
@@ -52,7 +52,7 @@ async function main() {
     const scheduleData = await fetchCleanJson('https://chromiumdash.appspot.com/fetch_milestones');
     await fs.writeFile(
       path.join(rawDir, 'milestones.json'),
-      JSON.stringify(scheduleData)
+      JSON.stringify(scheduleData, null, 2)
     );
     console.log(`Saved raw milestones to data/raw/milestones.json`);
   } catch (err) {
@@ -64,7 +64,7 @@ async function main() {
   const option2Data = await fetchCleanJson('https://chromestatus.com/features.json');
   await fs.writeFile(
     path.join(rawDir, 'features-lite.json'),
-    JSON.stringify(option2Data)
+    JSON.stringify(option2Data, null, 2)
   );
   console.log(`Saved raw lite features to data/raw/features-lite.json`);
 
@@ -85,7 +85,7 @@ async function main() {
     const otApiData = await otRes.json();
     await fs.writeFile(
       path.join(rawDir, 'ot-api-trials.json'),
-      JSON.stringify(otApiData)
+      JSON.stringify(otApiData, null, 2)
     );
     console.log(`Saved raw live authoritative Origin Trials API feed to data/raw/ot-api-trials.json`);
   } catch (err) {
