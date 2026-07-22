@@ -1,3 +1,9 @@
 [submodule "submodules/chromium-dashboard"]
 	path = submodules/chromium-dashboard
 	url = https://github.com/GoogleChrome/chromium-dashboard.git
+[submodule "submodules/browser-compat-data"]
+	path = submodules/browser-compat-data
+	url = https://github.com/mdn/browser-compat-data.git
+[submodule "submodules/web-features"]
+	path = submodules/web-features
+	url = https://github.com/web-platform-dx/web-features.git
