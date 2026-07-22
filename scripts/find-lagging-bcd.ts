@@ -22,7 +22,7 @@ for (const file of files) {
     
     // Check if the feature is shipped/enabled on desktop
     const csMilestone = data.browsers?.chrome?.desktop;
-    if (csMilestone && typeof csMilestone === 'number') {
+    if (csMilestone && typeof csMilestone === 'number' && csMilestone > 120) {
       const symbol = data.web_feature?.trim();
       
       // If we have a web_feature mapping symbol
