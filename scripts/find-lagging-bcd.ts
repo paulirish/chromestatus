@@ -25,7 +25,6 @@ for (const file of files) {
     if (csMilestone && typeof csMilestone === 'number' && csMilestone > 120) {
       const symbol = data.web_feature?.trim();
       
-      // If we have a web_feature mapping symbol
       if (symbol && symbol !== 'Missing feature' && symbol !== '') {
         const wfFeature = webFeatures.features[symbol];
         
@@ -35,7 +34,8 @@ for (const file of files) {
             name: data.name,
             symbol,
             csMilestone,
-            type: 'Missing Symbol'
+            type: 'Missing Symbol',
+            matchingKeys: 'N/A'
           });
         } else {
           const wfChromeSupport = wfFeature.status?.support?.chrome;
@@ -45,18 +45,32 @@ for (const file of files) {
               name: data.name,
               symbol,
               csMilestone,
-              type: 'No Chrome Support Listed'
+              type: 'No Chrome Support Listed',
+              matchingKeys: 'N/A'
             });
           } else {
             const wfMilestone = parseInt(wfChromeSupport, 10);
             if (!isNaN(wfMilestone)) {
               if (wfMilestone > csMilestone) {
+                // Find BCD keys matching the milestone
+                const matchingKeys: string[] = [];
+                if (wfFeature.status?.by_compat_key) {
+                  for (const [key, detail] of Object.entries(wfFeature.status.by_compat_key)) {
+                    if (detail.support?.chrome === wfChromeSupport) {
+                      matchingKeys.push(key);
+                    }
+                  }
+                }
+                
                 bcdLag.push({
                   id: data.id,
                   name: data.name,
                   symbol,
                   csMilestone,
-                  wfMilestone
+                  wfMilestone,
+                  matchingKeys: matchingKeys.length > 3 
+                    ? `${matchingKeys.slice(0, 3).join(', ')} ... (+${matchingKeys.length - 3} more)`
+                    : matchingKeys.join(', ') || 'unknown'
                 });
               }
             }
@@ -77,15 +91,15 @@ markdown += `This report compares ChromeStatus feature entries against the web-f
 
 markdown += `## 1. Milestone Lag (${bcdLag.length} features)\n`;
 markdown += `Features that are marked as shipped in ChromeStatus at an earlier milestone than what is recorded in BCD/web-features:\n\n`;
-markdown += `| Feature Name | Symbol | ChromeStatus Milestone | BCD/web-features Milestone | Link |\n`;
-markdown += `| :--- | :--- | :--- | :--- | :--- |\n`;
+markdown += `| Feature Name | Chrome Feature Symbol | ChromeStatus Milestone | BCD/web-features Milestone | BCD Key Source | Link |\n`;
+markdown += `| :--- | :--- | :--- | :--- | :--- | :--- |\n`;
 for (const entry of bcdLag) {
-  markdown += `| ${entry.name} | \`${entry.symbol}\` | M${entry.csMilestone} | M${entry.wfMilestone} | [ChromeStatus](https://chromestatus.com/feature/${entry.id}) |\n`;
+  markdown += `| ${entry.name} | \`${entry.symbol}\` | M${entry.csMilestone} | M${entry.wfMilestone} | \`${entry.matchingKeys}\` | [ChromeStatus](https://chromestatus.com/feature/${entry.id}) |\n`;
 }
 
 markdown += `\n## 2. Missing/Unsupported in BCD (${missingOrNoSupport.length} features)\n`;
 markdown += `Features marked as shipped in ChromeStatus, but have no Chrome support or symbol listed in BCD/web-features:\n\n`;
-markdown += `| Feature Name | Symbol | ChromeStatus Milestone | Type | Link |\n`;
+markdown += `| Feature Name | Chrome Feature Symbol | ChromeStatus Milestone | Type | Link |\n`;
 markdown += `| :--- | :--- | :--- | :--- | :--- |\n`;
 for (const entry of missingOrNoSupport) {
   markdown += `| ${entry.name} | \`${entry.symbol}\` | M${entry.csMilestone} | ${entry.type} | [ChromeStatus](https://chromestatus.com/feature/${entry.id}) |\n`;
