@@ -15,6 +15,12 @@ const files = fs.readdirSync(featuresDir).filter(f => f.endsWith('.json'));
 const bcdLag: any[] = [];
 const missingOrNoSupport: any[] = [];
 
+// Helper to check if a symbol string is structured like a BCD path
+function isBcdPath(symbol: string): boolean {
+  const prefixes = ['api.', 'css.', 'html.', 'svg.', 'javascript.', 'http.'];
+  return prefixes.some(p => symbol.startsWith(p));
+}
+
 for (const file of files) {
   const filePath = path.join(featuresDir, file);
   try {
@@ -35,18 +41,21 @@ for (const file of files) {
             symbol,
             csMilestone,
             type: 'Missing Symbol',
-            matchingKeys: 'N/A'
+            matchingKeys: isBcdPath(symbol) ? symbol : 'N/A'
           });
         } else {
           const wfChromeSupport = wfFeature.status?.support?.chrome;
           if (!wfChromeSupport) {
+            const compatFeatures = wfFeature.compat_features || [];
             missingOrNoSupport.push({
               id: data.id,
               name: data.name,
               symbol,
               csMilestone,
               type: 'No Chrome Support Listed',
-              matchingKeys: 'N/A'
+              matchingKeys: compatFeatures.length > 3
+                ? `${compatFeatures.slice(0, 3).join(', ')} ... (+${compatFeatures.length - 3} more)`
+                : compatFeatures.join(', ') || 'N/A'
             });
           } else {
             const wfMilestone = parseInt(wfChromeSupport, 10);
@@ -99,10 +108,10 @@ for (const entry of bcdLag) {
 
 markdown += `\n## 2. Missing/Unsupported in BCD (${missingOrNoSupport.length} features)\n`;
 markdown += `Features marked as shipped in ChromeStatus, but have no Chrome support or symbol listed in BCD/web-features:\n\n`;
-markdown += `| Feature Name | Chrome Feature Symbol | ChromeStatus Milestone | Type | Link |\n`;
-markdown += `| :--- | :--- | :--- | :--- | :--- |\n`;
+markdown += `| Feature Name | Chrome Feature Symbol | ChromeStatus Milestone | Type | BCD Keys | Link |\n`;
+markdown += `| :--- | :--- | :--- | :--- | :--- | :--- |\n`;
 for (const entry of missingOrNoSupport) {
-  markdown += `| ${entry.name} | \`${entry.symbol}\` | M${entry.csMilestone} | ${entry.type} | [ChromeStatus](https://chromestatus.com/feature/${entry.id}) |\n`;
+  markdown += `| ${entry.name} | \`${entry.symbol}\` | M${entry.csMilestone} | ${entry.type} | \`${entry.matchingKeys}\` | [ChromeStatus](https://chromestatus.com/feature/${entry.id}) |\n`;
 }
 
 fs.writeFileSync(artifactPath, markdown);
