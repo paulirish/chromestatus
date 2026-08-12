@@ -13,5 +13,5 @@
     "skipLibCheck": true,
     "types": ["node"]
   },
-  "exclude": ["submodules", "*.js"]
+  "exclude": ["submodules", "*.js", "scripts/find-lagging-bcd.ts"]
 }
