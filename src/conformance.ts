@@ -160,24 +160,25 @@ export class ConformanceAuditor {
             };
 
             const isMilestoneInEmpiricalRange = wfMilestone !== null && wfMilestone >= minEmpVersion && wfMilestone <= maxEmpVersion;
+            const isEarlyEmpiricalPass = wfMilestone !== null && minEmpVersion < wfMilestone;
 
             // Categorize based on alignment
             if (wfMilestone !== null) {
-              // 1. Aligned: CS and BCD agree, and their milestone is within the empirical range
-              if (csMilestone === wfMilestone && isMilestoneInEmpiricalRange) {
+              // 1. Aligned: CS and BCD agree, and empirical tests confirm support at/before that milestone
+              if (csMilestone === wfMilestone && (isMilestoneInEmpiricalRange || isEarlyEmpiricalPass)) {
                 aligned.push(record);
               }
-              // 2. WebDX Coarse Mapping: BCD milestone is earlier than the earliest passing key
+              // 2. ChromeStatus Stale: BCD and Empirical agree (or empirical is earlier), but CS is different
+              else if ((wfMilestone === minEmpVersion || isEarlyEmpiricalPass) && csMilestone !== wfMilestone) {
+                csStale.push(record);
+              }
+              // 3. WebDX Coarse Mapping: BCD is earlier than the earliest empirical passing test
               else if (wfMilestone < minEmpVersion) {
                 coarseMapping.push(record);
               }
-              // 3. Static BCD Lagging: Empirical tests passed at/before CS milestone, but BCD is later
+              // 4. Static BCD Lagging: Empirical tests passed at/before CS milestone, but BCD is later
               else if (minEmpVersion <= csMilestone && wfMilestone > csMilestone) {
                 bcdLagging.push(record);
-              }
-              // 4. ChromeStatus Stale: Empirical tests and BCD align, but CS is earlier/wrong
-              else if (wfMilestone >= minEmpVersion && wfMilestone <= maxEmpVersion && csMilestone < wfMilestone) {
-                csStale.push(record);
               }
               // 5. Flag Gaps / Collector Late Tests: Empirical tests passed later than both CS and BCD records
               else if (minEmpVersion > csMilestone && minEmpVersion > wfMilestone) {
