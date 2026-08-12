@@ -22,6 +22,7 @@
     "audit:flag-symbols": "node scripts/print-flag-symbols.ts",
     "audit:gated": "node scripts/print-gated-features.ts",
     "audit:unmapped-ots": "node scripts/find-unmapped-ot-features.ts",
+    "audit:conformance": "node scripts/audit-bcd-conformance.ts",
     "compile": "node build/compile-data.ts",
     "download": "node build/download-raw.ts",
     "fetch": "pnpm run download && pnpm run compile",
