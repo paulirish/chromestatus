@@ -3,6 +3,10 @@ import assert from 'node:assert';
 import { CUSTOM_WEB_FEATURE_OVERRIDES } from '../src/overrides.ts';
 import { tokenize, jaccardIndex, overlapCoefficient } from '../src/text-analyzer.ts';
 import { normalizeBaseUrl, extractAnchor, isSpecMatch } from '../src/spec-matcher.ts';
+import { EmpiricalSupportIndex } from '../src/empirical-index.ts';
+import fs from 'node:fs';
+import path from 'node:path';
+import os from 'node:os';
 
 test('Centralized Mapping Overrides', () => {
   assert.ok(CUSTOM_WEB_FEATURE_OVERRIDES);
@@ -67,4 +71,43 @@ test('Spec Matcher Alignment', () => {
     'https://html.spec.whatwg.org/multipage/interaction.html#dom-dragevent',
     'https://html.spec.whatwg.org/multipage/interaction.html#dom-datatransfer'
   ), false);
+});
+
+test('Empirical Support Index Chronological Loading', () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'empirical-index-test-'));
+  
+  const file1 = path.join(tempDir, '100.0.1000.0-chrome-100.0.1000.0-windows-unknown-0000000000.json');
+  fs.writeFileSync(file1, JSON.stringify({
+    results: {
+      'api.foo': [{ name: 'api.foo.bar', result: true }],
+      'api.baz': [{ name: 'api.baz.qux', result: false }]
+    }
+  }));
+
+  const file2 = path.join(tempDir, '101.0.1100.0-chrome-101.0.1100.0-windows-unknown-0000000000.json');
+  fs.writeFileSync(file2, JSON.stringify({
+    results: {
+      'api.foo': [{ name: 'api.foo.bar', result: true }],
+      'api.baz': [{ name: 'api.baz.qux', result: true }]
+    }
+  }));
+
+  try {
+    const index = EmpiricalSupportIndex.loadFromDir(tempDir);
+
+    const supportFoo = index.getSupport('api.foo.bar');
+    assert.ok(supportFoo);
+    assert.equal(supportFoo.majorVersion, 100);
+    assert.equal(supportFoo.fullVersion, '100.0.1000.0');
+
+    const supportBaz = index.getSupport('api.baz.qux');
+    assert.ok(supportBaz);
+    assert.equal(supportBaz.majorVersion, 101);
+    assert.equal(supportBaz.fullVersion, '101.0.1100.0');
+
+    assert.equal(index.getSupport('api.unknown'), undefined);
+
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
 });
