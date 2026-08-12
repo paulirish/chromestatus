@@ -86,6 +86,47 @@ const aligned: any[] = [];
 const noEmpiricalData: any[] = [];
 const noBcdKeys: any[] = [];
 
+const KEY_STOP_WORDS = new Set([
+  'api', 'css', 'html', 'svg', 'javascript', 'http',
+  'window', 'document', 'element', 'event', 'attribute', 'property', 'method',
+  'interface', 'object', 'function', 'class', 'value', 'type', 'parameter', 'options'
+]);
+
+function getCleanTokens(text: string): string[] {
+  return text.toLowerCase()
+    .split(/[^a-z0-9]+/i)
+    .filter(t => t.length > 2);
+}
+
+function filterRelevantBcdKeys(keys: string[], csName: string, csSummary: string): string[] {
+  const nameTokens = getCleanTokens(csName).filter(t => !KEY_STOP_WORDS.has(t));
+  if (nameTokens.length === 0) return keys;
+
+  const matched: string[] = [];
+  for (const key of keys) {
+    const lowerKey = key.toLowerCase();
+    const isMatched = nameTokens.some(token => lowerKey.includes(token));
+    if (isMatched) {
+      matched.push(key);
+    }
+  }
+
+  if (matched.length > 0) {
+    return matched;
+  }
+
+  const summaryTokens = getCleanTokens(csSummary).filter(t => !KEY_STOP_WORDS.has(t));
+  for (const key of keys) {
+    const lowerKey = key.toLowerCase();
+    const isMatched = summaryTokens.some(token => lowerKey.includes(token));
+    if (isMatched) {
+      matched.push(key);
+    }
+  }
+
+  return matched.length > 0 ? matched : keys;
+}
+
 for (const file of csFiles) {
   const filePath = path.join(csFeaturesDir, file);
   try {
@@ -106,11 +147,13 @@ for (const file of csFiles) {
           const wfChromeSupport = wfFeature.status?.support?.chrome;
           const wfMilestone = wfChromeSupport ? parseInt(wfChromeSupport, 10) : null;
           
-          const keys = wfFeature.compat_features || [];
-          if (keys.length === 0) {
+          const allKeys = wfFeature.compat_features || [];
+          if (allKeys.length === 0) {
             noBcdKeys.push({ id: data.id, name: data.name, symbol, csMilestone, wfMilestone });
             continue;
           }
+
+          const keys = filterRelevantBcdKeys(allKeys, data.name, data.summary || '');
 
           const keyResults = (keys as string[]).map((k: string) => {
             const emp = empiricalBcdSupportMap.get(k);
