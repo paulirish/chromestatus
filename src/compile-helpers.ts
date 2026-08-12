@@ -22,6 +22,23 @@ export function resolveWebFeatureBaselineYear(symbol: string, webFeaturesCatalog
 }
 
 /**
+ * ==============================================================================
+ * CRITICAL EMPIRICAL FILTERING HEURISTICS: EVALUATING GENUINE ACTIVE ORIGIN TRIALS
+ * ==============================================================================
+ * Upstream database architecture exhibits specific historical nuances and process gaps:
+ * 1. Historical Legacy Persistence: Stage 150 objects are permanently retained inside a feature's
+ *    timeline array. Ancient trials launched half a decade ago permanently record `desktop_last: null`
+ *    due to database evolution gaps. Naively scanning for Stage 150 without checking overarching release
+ *    states sweeps in hundreds of universally supported foundational web standards (e.g., Pointer Events).
+ * 2. Overarching Status Precedence: If an overarching record asserts released states ("Shipped",
+ *    "Enabled by default", or "Removed"), it definitively supersedes open legacy stage parameters.
+ * 3. Future-Scheduled Trials: Experiments mapping `desktop_first` integers targeting future browser releases
+ *    hold ending bounds >= stable, but remain hidden from public active dashboard interfaces until launch.
+ * 4. Private Evaluations: Confidential partner tests enforce `unlisted: true` and must be safely dropped.
+ * 5. Authoritative OT API Synchronization: If Google's active developer API explicitly tracks a feature ID
+ *    or trial flag string, it provides mathematical confirmation overriding heuristic ambiguities.
+ * ==============================================================================
+ * 
  * Evaluates whether a feature is genuinely active in Chrome's Origin Trials.
  */
 export function evaluateActiveOriginTrial(
