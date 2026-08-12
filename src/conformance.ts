@@ -154,9 +154,9 @@ export class ConformanceAuditor {
             const record: ConformanceRecord = {
               ...recordStub,
               empirical: `${empiricalDisplay}${displayNote}`,
-              keys: keys.length > 3
-                ? `${keys.slice(0, 3).join(', ')} ... (+${keys.length - 3} more)`
-                : keys.join(', ')
+              keys: keys.length > 1
+                ? `${keys[0]} (+${keys.length - 1} more)`
+                : keys[0] || ''
             };
 
             const isMilestoneInEmpiricalRange = wfMilestone !== null && wfMilestone >= minEmpVersion && wfMilestone <= maxEmpVersion;
