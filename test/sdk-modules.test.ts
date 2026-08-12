@@ -5,7 +5,8 @@ import { tokenize, jaccardIndex, overlapCoefficient } from '../src/text-analyzer
 import { normalizeBaseUrl, extractAnchor, isSpecMatch } from '../src/spec-matcher.ts';
 import { EmpiricalSupportIndex } from '../src/empirical-index.ts';
 import { ConformanceAuditor } from '../src/conformance.ts';
-import type { ChromeStatusFeatureDetailed } from '../src/types.ts';
+import { AlignmentAuditor } from '../src/alignment.ts';
+import type { ChromeStatusFeatureDetailed, ChromeStatusFeatureStub } from '../src/types.ts';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
@@ -150,4 +151,113 @@ test('Conformance Auditor - Aligned Case', () => {
   assert.equal(result.bcdLagging.length, 0);
   assert.equal(result.csStale.length, 0);
   assert.equal(result.flagGaps.length, 0);
+});
+
+test('Alignment Auditor - Diagnostics', () => {
+  const mockStubs: ChromeStatusFeatureStub[] = [
+    {
+      id: 10,
+      name: "Orphan Feature",
+      summary: "Summary",
+      web_feature: "non-existent-symbol",
+      category: "CSS",
+      blink_components: [],
+      star_count: 0,
+      is_released: true,
+      browsers: { chrome: { status: { text: "Enabled by default" } } } as any,
+      standards: { maturity: { short_text: "ED" } } as any,
+      stage_types: []
+    },
+    {
+      id: 20,
+      name: "Moved Feature",
+      summary: "Summary",
+      web_feature: "display-grid-lanes",
+      category: "CSS",
+      blink_components: [],
+      star_count: 0,
+      is_released: true,
+      browsers: { chrome: { status: { text: "Enabled by default" } } } as any,
+      standards: { maturity: { short_text: "ED" } } as any,
+      stage_types: []
+    },
+    {
+      id: 25,
+      name: "Split Feature",
+      summary: "Summary",
+      web_feature: "single-color-gradients",
+      category: "CSS",
+      blink_components: [],
+      star_count: 0,
+      is_released: true,
+      browsers: { chrome: { status: { text: "Enabled by default" } } } as any,
+      standards: { maturity: { short_text: "ED" } } as any,
+      stage_types: []
+    },
+    {
+      id: 30,
+      name: "Drifting Feature",
+      summary: "Summary",
+      web_feature: "grid",
+      category: "CSS",
+      blink_components: [],
+      star_count: 0,
+      is_released: true,
+      browsers: { chrome: { status: { text: "Enabled in Chrome 50" } } } as any,
+      standards: { maturity: { short_text: "ED" } } as any,
+      stage_types: []
+    },
+    {
+      id: 41,
+      name: "Collision Feature 1",
+      summary: "Summary",
+      web_feature: "flexbox",
+      category: "CSS",
+      blink_components: [],
+      star_count: 0,
+      is_released: true,
+      browsers: { chrome: { status: { text: "Enabled by default" } } } as any,
+      standards: { maturity: { short_text: "ED" } } as any,
+      stage_types: []
+    },
+    {
+      id: 42,
+      name: "Collision Feature 2",
+      summary: "Summary",
+      web_feature: "flexbox",
+      category: "CSS",
+      blink_components: [],
+      star_count: 0,
+      is_released: true,
+      browsers: { chrome: { status: { text: "Enabled by default" } } } as any,
+      standards: { maturity: { short_text: "ED" } } as any,
+      stage_types: []
+    }
+  ];
+
+  const report = AlignmentAuditor.run(mockStubs);
+
+  assert.equal(report.orphans.length, 1);
+  assert.equal(report.orphans[0].featureId, 10);
+  assert.equal(report.orphans[0].staleSymbol, "non-existent-symbol");
+
+  assert.equal(report.redirects.length, 2);
+  const moved = report.redirects.find((r: any) => r.fromSymbol === "display-grid-lanes");
+  assert.ok(moved);
+  assert.equal(moved.kind, "moved");
+  assert.equal(moved.target, "masonry");
+
+  const split = report.redirects.find((r: any) => r.fromSymbol === "single-color-gradients");
+  assert.ok(split);
+  assert.equal(split.kind, "split");
+  assert.deepEqual(split.target, ["gradients", "conic-gradients"]);
+
+  assert.equal(report.milestoneDrift.length, 1);
+  assert.equal(report.milestoneDrift[0].featureId, 30);
+  assert.equal(report.milestoneDrift[0].csMilestone, "M50");
+  assert.equal(report.milestoneDrift[0].wfMilestone, "M57");
+
+  assert.equal(report.collisions.length, 1);
+  assert.equal(report.collisions[0].symbol, "flexbox");
+  assert.deepEqual(report.collisions[0].featureIds, [41, 42]);
 });
