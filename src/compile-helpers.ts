@@ -38,7 +38,7 @@ export function resolveWebFeatureBaselineYear(symbol: string, webFeaturesCatalog
  * 5. Authoritative OT API Synchronization: If Google's active developer API explicitly tracks a feature ID
  *    or trial flag string, it provides mathematical confirmation overriding heuristic ambiguities.
  * ==============================================================================
- * 
+ *
  * Evaluates whether a feature is genuinely active in Chrome's Origin Trials.
  */
 export function evaluateActiveOriginTrial(
@@ -68,8 +68,8 @@ export function evaluateActiveOriginTrial(
   if (!isGenuinelyActive) {
     const isShippedOrDead = f.is_released === true ||
                             f.unlisted === true ||
-                            statusText.includes('enabled by default') || 
-                            statusText.includes('shipped') || 
+                            statusText.includes('enabled by default') ||
+                            statusText.includes('shipped') ||
                             statusText.includes('removed') ||
                             statusText.includes('no longer pursuing') ||
                             intentStage.includes('shipped') ||
@@ -158,8 +158,8 @@ export function evaluateBehindFlag(
   // Validate flag list: explicitly drop universally shipped or legacy baseline standard features
   if (isBehindFlag) {
     const isShippedOrDead = f.unlisted === true ||
-                            statusText.includes('enabled by default') || 
-                            statusText.includes('shipped') || 
+                            statusText.includes('enabled by default') ||
+                            statusText.includes('shipped') ||
                             statusText.includes('removed') ||
                             statusText.includes('no longer pursuing') ||
                             intentStage.includes('shipped') ||

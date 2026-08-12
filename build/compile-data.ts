@@ -14,7 +14,7 @@ async function main() {
   const dataDir = path.resolve(process.cwd(), 'data');
   const rawDir = path.join(dataDir, 'raw');
   const featuresDir = path.join(dataDir, 'features');
-  
+
   await fs.mkdir(featuresDir, { recursive: true });
 
   console.log("Starting data compilation from raw cache...");
@@ -132,7 +132,7 @@ async function main() {
   const batchSize = 100;
   for (let i = 0; i < uniqueOption1.length; i += batchSize) {
     const batch = uniqueOption1.slice(i, i + batchSize);
-    await Promise.all(batch.map(f => 
+    await Promise.all(batch.map(f =>
       fs.writeFile(path.join(featuresDir, `${f.id}.json`), JSON.stringify(f, null, 2))
     ));
   }
@@ -198,7 +198,7 @@ async function main() {
   const option2Content = await fs.readFile(path.join(rawDir, 'features-lite.json'), 'utf8');
   const option2Data = JSON.parse(option2Content);
   const option2Features: any[] = Array.isArray(option2Data) ? option2Data : option2Data.features || [];
-  
+
   const cleanOption2 = option2Features.filter(f => f && Number.isInteger(Number(f.id)));
   cleanOption2.sort((a, b) => Number(a.id) - Number(b.id));
 

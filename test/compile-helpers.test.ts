@@ -102,7 +102,7 @@ test('evaluateActiveOriginTrial - baseline year exclusion bounds', () => {
       { stage_type: 150, desktop_first: 100, desktop_last: 125 }
     ]
   };
-  
+
   const mockBaselineResolver = (symbol: string) => {
     if (symbol === 'canvas-html' || symbol === 'canvas') return 2015;
     return undefined;
