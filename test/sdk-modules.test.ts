@@ -4,6 +4,8 @@ import { CUSTOM_WEB_FEATURE_OVERRIDES } from '../src/overrides.ts';
 import { tokenize, jaccardIndex, overlapCoefficient } from '../src/text-analyzer.ts';
 import { normalizeBaseUrl, extractAnchor, isSpecMatch } from '../src/spec-matcher.ts';
 import { EmpiricalSupportIndex } from '../src/empirical-index.ts';
+import { ConformanceAuditor } from '../src/conformance.ts';
+import type { ChromeStatusFeatureDetailed } from '../src/types.ts';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
@@ -110,4 +112,42 @@ test('Empirical Support Index Chronological Loading', () => {
   } finally {
     fs.rmSync(tempDir, { recursive: true, force: true });
   }
+});
+
+test('Conformance Auditor - Aligned Case', () => {
+  const mockEmpiricalIndex = {
+    getSupport(bcdKey: string) {
+      if (bcdKey.includes('popover')) {
+        return { majorVersion: 116, fullVersion: '116.0.0.0' };
+      }
+      return undefined;
+    }
+  } as unknown as EmpiricalSupportIndex;
+
+  const auditor = new ConformanceAuditor(mockEmpiricalIndex);
+
+  const mockFeature = {
+    id: 1,
+    name: "Popover API",
+    summary: "A mechanism for displaying popovers",
+    web_feature: "popover",
+    browsers: {
+      chrome: {
+        desktop: 116
+      }
+    }
+  } as unknown as ChromeStatusFeatureDetailed;
+
+  const result = auditor.audit([mockFeature]);
+
+  assert.equal(result.aligned.length, 1);
+  assert.equal(result.aligned[0].id, 1);
+  assert.equal(result.aligned[0].name, "Popover API");
+  assert.equal(result.aligned[0].csMilestone, 116);
+  assert.equal(result.aligned[0].wfMilestone, "M116");
+  assert.ok(result.aligned[0].empirical.startsWith("M116"));
+  
+  assert.equal(result.bcdLagging.length, 0);
+  assert.equal(result.csStale.length, 0);
+  assert.equal(result.flagGaps.length, 0);
 });
