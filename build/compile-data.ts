@@ -378,7 +378,7 @@ async function main() {
 
     const rawSym = f.web_feature;
     const symbols = rawSym && rawSym !== 'Missing feature' && rawSym.toLowerCase() !== 'none'
-      ? rawSym.split(',').map((s: string) => s.trim()).filter(Boolean)
+      ? rawSym.toLowerCase().split(',').map((s: string) => s.trim()).filter(Boolean)
       : [];
 
     if (symbols.length > 0) {

@@ -1,45 +1,20 @@
 import { ChromeStatusClient } from '../src/index.ts';
+import fs from 'node:fs/promises';
 
 async function main() {
-  const client = await ChromeStatusClient.create();
-  
   if (process.argv.includes('--json')) {
-    const activeStubs = client.getActiveOriginTrials();
-    const otMapping: Record<string, any> = {
-      unmapped: []
-    };
-
-    for (const f of activeStubs) {
-      const rawSym = f.web_feature;
-      const symbols = rawSym && rawSym !== 'Missing feature' && rawSym.toLowerCase() !== 'none'
-        ? rawSym.split(',').map(s => s.trim()).filter(Boolean)
-        : [];
-
-      if (symbols.length > 0) {
-        for (const symbol of symbols) {
-          otMapping[symbol] = {
-            chromestatus_url: `https://chromestatus.com/feature/${f.id}`
-          };
-        }
-      } else {
-        otMapping.unmapped.push({
-          name: f.name,
-          chromestatus_url: `https://chromestatus.com/feature/${f.id}`
-        });
-      }
+    try {
+      const mappingPath = new URL('../data/ot-mapping.json', import.meta.url);
+      const content = await fs.readFile(mappingPath, 'utf8');
+      console.log(content);
+    } catch (err) {
+      console.error("Error reading data/ot-mapping.json. Ensure data is compiled.");
+      process.exit(1);
     }
-
-    const mappedKeys = Object.keys(otMapping).filter(k => k !== 'unmapped').sort();
-    const sortedOtMapping: Record<string, any> = {};
-    for (const key of mappedKeys) {
-      sortedOtMapping[key] = otMapping[key];
-    }
-    otMapping.unmapped.sort((a: any, b: any) => a.name.localeCompare(b.name));
-    sortedOtMapping.unmapped = otMapping.unmapped;
-
-    console.log(JSON.stringify(sortedOtMapping, null, 2));
     return;
   }
+
+  const client = await ChromeStatusClient.create();
   
   console.log("==================================================================");
   console.log("       AUTHORITATIVE ACTIVE ORIGIN TRIAL INVENTORY");

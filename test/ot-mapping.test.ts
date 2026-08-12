@@ -27,6 +27,7 @@ test('OT Mapping JSON Validation', async () => {
   assert.equal(keys.length > 0, true, 'Must have at least one mapped symbol key');
 
   for (const key of keys) {
+    assert.equal(key, key.toLowerCase(), `Mapped symbol key "${key}" must be lowercase`);
     const value = data[key];
     assert.equal(typeof value, 'object', `Mapped symbol value for "${key}" must be an object`);
     assert.notEqual(value, null, `Mapped symbol value for "${key}" must not be null`);

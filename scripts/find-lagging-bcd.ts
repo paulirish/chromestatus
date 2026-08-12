@@ -65,10 +65,10 @@ for (const file of files) {
               if (wfMilestone > csMilestone) {
                 // Find BCD keys matching the milestone
                 const matchingKeys: string[] = [];
-                const byCompatKey = wfFeature.status?.by_compat_key as Record<string, any> | undefined;
+                const byCompatKey = wfFeature.status.by_compat_key as Record<string, { support: { chrome?: string } }> | undefined;
                 if (byCompatKey) {
                   for (const [key, detail] of Object.entries(byCompatKey)) {
-                    if (detail?.support?.chrome === wfChromeSupport) {
+                    if (detail.support?.chrome === wfChromeSupport) {
                       matchingKeys.push(key);
                     }
                   }
