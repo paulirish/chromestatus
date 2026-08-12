@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { features as webFeatures } from 'web-features';
+import { CUSTOM_WEB_FEATURE_OVERRIDES } from '../src/overrides.ts';
 
 async function main() {
   const dataDir = path.resolve(process.cwd(), 'data');
@@ -29,25 +30,7 @@ async function main() {
   const activeOtIds: number[] = [];
   const experimentalFlagIds: number[] = [];
 
-  // Explicit compile-time overrides dictionary correcting upstream ChromeStatus datastore entry anomalies
-  // Keyed by exact descriptive feature name strings to ensure highly readable, self-documenting code maintenance
-  const CUSTOM_WEB_FEATURE_OVERRIDES: Record<string, string> = {
-    // Maps HTML-in-canvas feature directly to its authentic canonical identifier "canvas-html"
-    "HTML-in-canvas": "canvas-html",
-    // Correct upstream datastore typo mapping to canonical identifier
-    "Numeric separators": "numeric-separators",
-    // Migrate deprecated symbol to active canonical target identifier
-    "CSS :open pseudo-class": "open-pseudo",
-    // Map experimental prompt API parameters onto authentic verified base symbol
-    "Prompt API Sampling Parameters": "languagemodel",
-    // Multi-agent verified absolute canonical mapping assignments for unmapped Origin Trials
-    "Web app HTML install element": "install",
-    "Digital Credentials API (issuance support)": "digital-credentials",
-    "Prerendering cross-origin iframes": "speculation-rules",
-    "Proofreader API": "languagemodel",
-    // Connect proposed WebMCP incubation directly to authoritative dictionary capability string
-    "WebMCP": "declarative-webmcp,navigator-modelcontext"
-  };
+  // Centralized compile-time overrides are imported from src/overrides.ts
 
   // Internal helper extracting authoritative baseline implementation support year from web-features dictionary
   function resolveWebFeatureBaselineYear(symbol: string): number | undefined {

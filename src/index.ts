@@ -1,5 +1,7 @@
 import fs from 'node:fs/promises';
 import type { ChromeStatusFeatureStub, ChromeStatusFeatureDetailed } from './types.ts';
+import { CUSTOM_WEB_FEATURE_OVERRIDES } from './overrides.ts';
+import { tokenize } from './text-analyzer.ts';
 
 export * from './types.ts';
 
@@ -7,7 +9,7 @@ interface SearchIndexRecord {
   id: number;
   symbol?: string; // lowercased and normalized symbol
   stub: Readonly<ChromeStatusFeatureStub>;
-  nameTokens?: string[]; // lazily tokenized descriptive cache array
+  nameTokens?: Set<string>; // updated to Set<string> for unified tokenization
 }
 
 /**
@@ -26,7 +28,13 @@ export class ChromeStatusClient {
     activeOriginTrialIds: ReadonlyArray<number> = [],
     experimentalFlagIds: ReadonlyArray<number> = []
   ) {
-    this.stubs = Object.freeze(stubs.map(stub => Object.freeze({ ...stub })));
+    this.stubs = Object.freeze(stubs.map(stub => {
+      let web_feature = stub.web_feature;
+      if (stub.name && Object.hasOwn(CUSTOM_WEB_FEATURE_OVERRIDES, stub.name)) {
+        web_feature = CUSTOM_WEB_FEATURE_OVERRIDES[stub.name];
+      }
+      return Object.freeze({ ...stub, web_feature });
+    }));
     this.originTrialIds = new Set(activeOriginTrialIds);
     this.experimentalFlagIds = new Set(experimentalFlagIds);
     
@@ -111,24 +119,33 @@ export class ChromeStatusClient {
     }
 
     const clean = query.trim().toLowerCase();
-    const queryTokens = clean.split(/[-_\s]+/).filter(t => t.length > 0);
-    if (!queryTokens.length) return undefined;
+    const queryTokens = tokenize(clean);
+    if (queryTokens.size === 0) return undefined;
 
     // 1. Exact symbol match prioritization
     const exact = this.searchIndex.find(r => r.symbol === clean);
     if (exact) return exact.stub;
 
     // 2. Full symbol word containment (preventing broad substring hijacking)
-    const tokenMatchedSymbol = this.searchIndex.find(r => r.symbol && r.symbol.length >= 3 && queryTokens.includes(r.symbol));
+    const tokenMatchedSymbol = this.searchIndex.find(r => r.symbol && r.symbol.length >= 3 && queryTokens.has(r.symbol));
     if (tokenMatchedSymbol) return tokenMatchedSymbol.stub;
 
     // 3. Strict descriptive multi-word token consensus checks evaluated using lazy token caching
     const matched = this.searchIndex.find(r => {
       if (!r.nameTokens) {
-        // Populate descriptive cache array onto record on-demand to preserve startup heap memory bounds
-        r.nameTokens = r.stub.name.toLowerCase().split(/[-_\s]+/).filter(t => t.length > 0);
+        r.nameTokens = tokenize(r.stub.name);
       }
-      return queryTokens.every(qt => r.nameTokens!.some(nt => nt.includes(qt)));
+      for (const qt of queryTokens) {
+        let hasMatch = false;
+        for (const nt of r.nameTokens) {
+          if (nt.includes(qt)) {
+            hasMatch = true;
+            break;
+          }
+        }
+        if (!hasMatch) return false;
+      }
+      return true;
     });
 
     if (matched) return matched.stub;

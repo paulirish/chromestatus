@@ -2,6 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { features as webFeatures } from 'web-features';
 import type { ChromeStatusFeatureDetailed } from '../src/types.ts';
+import { isSpecMatch, MONOLITHIC_SYMBOLS } from '../src/spec-matcher.ts';
 
 async function main() {
   const dataDir = path.resolve(process.cwd(), 'data');
@@ -15,24 +16,6 @@ async function main() {
     console.error("Error reading data/active-ot-index.json");
     process.exit(1);
   }
-
-  const normalizeBaseUrl = (url: string | null | undefined) => {
-    if (!url) return '';
-    try {
-      const parsed = new URL(url);
-      return `${parsed.origin}${parsed.pathname}`.replace(/\/$/, '');
-    } catch {
-      return url.trim().replace(/\/$/, '').split('#')[0];
-    }
-  };
-
-  const extractAnchor = (url: string | null | undefined) => {
-    if (!url || !url.includes('#')) return null;
-    return url.split('#')[1];
-  };
-
-  // Exclude broad monolithic specs
-  const monolithicSymbols = new Set(['html', 'dom', 'css', 'fetch', 'xhr', 'svg', 'webappsec']);
 
   const finalVerifiedMappings: {
     id: number;
@@ -76,27 +59,12 @@ async function main() {
     let matchType: 'spec_cross_reference' | 'semantic_keyword' = 'spec_cross_reference';
 
     for (const [symbol, wfData] of Object.entries(webFeatures)) {
-      if (wfData.kind !== 'feature' || monolithicSymbols.has(symbol) || symbol.length <= 2) continue;
+      if (wfData.kind !== 'feature' || MONOLITHIC_SYMBOLS.has(symbol) || symbol.length <= 2) continue;
       const wfSpecs = wfData.spec || [];
       
       for (const dSpec of documentedSpecs) {
-        const baseDSpec = normalizeBaseUrl(dSpec);
-        const anchorDSpec = extractAnchor(dSpec);
-        if (!baseDSpec) continue;
-
         for (const wSpec of wfSpecs) {
-          const baseWSpec = normalizeBaseUrl(wSpec);
-          const anchorWSpec = extractAnchor(wSpec);
-          if (!baseWSpec) continue;
-
-          if (baseDSpec === baseWSpec || baseWSpec.startsWith(baseDSpec) || baseDSpec.startsWith(baseWSpec)) {
-            // For broad standard web URLs, enforce extremely tight alignment to prevent mapping standard base pages to granular entries
-            if (baseDSpec.includes('html.spec.whatwg.org') || baseDSpec.includes('w3.org')) {
-              // Require both to define hash anchors and for those anchors to perfectly match, or symbol to match anchor tokens
-              if (!anchorDSpec || !anchorWSpec || anchorDSpec !== anchorWSpec) {
-                continue;
-              }
-            }
+          if (isSpecMatch(dSpec, wSpec)) {
             granularSymbolMatched = symbol;
             break;
           }
@@ -110,7 +78,7 @@ async function main() {
     if (!granularSymbolMatched) {
       const query = feature.name.toLowerCase();
       for (const [symbol, wfData] of Object.entries(webFeatures)) {
-        if (wfData.kind !== 'feature' || monolithicSymbols.has(symbol) || symbol.length <= 2) continue;
+        if (wfData.kind !== 'feature' || MONOLITHIC_SYMBOLS.has(symbol) || symbol.length <= 2) continue;
         const wfName = (wfData.name || '').toLowerCase();
         
         if (

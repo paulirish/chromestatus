@@ -66,7 +66,7 @@ test('ChromeStatusClient - Synchronous querying and Origin Trial indexing valida
 
   // 3. Verify top-level active Origin Trial web_feature IDs extraction helper
   const activeIds = client.getActiveOriginTrialWebFeatureIds();
-  assert.equal(activeIds.includes('canvas'), true, 'Active OT web_feature list must include canvas');
+  assert.equal(activeIds.includes('canvas-html'), true, 'Active OT web_feature list must include canvas-html');
 
   // 4. Verify complete un-truncated active feature objects accounting retrieval
   const activeStubs = client.getActiveOriginTrials();
