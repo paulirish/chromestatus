@@ -1,12 +1,11 @@
-import process from 'process';
-import fs from 'fs';
-import path from 'path';
+import process from 'node:process';
+import fs from 'node:fs';
+import path from 'node:path';
+import { features } from 'web-features';
 
 const projectRoot = process.cwd();
-process.chdir('submodules/web-features');
 
-console.log('Loading submodule web-features...');
-const webFeatures = await import('../submodules/web-features/index.ts');
+console.log('Loading web-features package...');
 
 console.log('Reading ChromeStatus features...');
 const featuresDir = path.resolve(projectRoot, 'data/features');
@@ -32,7 +31,10 @@ for (const file of files) {
       const symbol = data.web_feature?.trim();
       
       if (symbol && symbol !== 'Missing feature' && symbol !== '') {
-        const wfFeature = webFeatures.features[symbol];
+        let wfFeature = features[symbol];
+        if (wfFeature && wfFeature.kind === 'moved' && typeof wfFeature.redirect_target === 'string') {
+          wfFeature = features[wfFeature.redirect_target];
+        }
         
         if (!wfFeature) {
           missingOrNoSupport.push({
@@ -43,7 +45,7 @@ for (const file of files) {
             type: 'Missing Symbol',
             matchingKeys: isBcdPath(symbol) ? symbol : 'N/A'
           });
-        } else {
+        } else if (wfFeature.kind === 'feature') {
           const wfChromeSupport = wfFeature.status?.support?.chrome;
           if (!wfChromeSupport) {
             const compatFeatures = wfFeature.compat_features || [];
@@ -63,9 +65,10 @@ for (const file of files) {
               if (wfMilestone > csMilestone) {
                 // Find BCD keys matching the milestone
                 const matchingKeys: string[] = [];
-                if (wfFeature.status?.by_compat_key) {
-                  for (const [key, detail] of Object.entries(wfFeature.status.by_compat_key)) {
-                    if (detail.support?.chrome === wfChromeSupport) {
+                const byCompatKey = wfFeature.status?.by_compat_key as Record<string, any> | undefined;
+                if (byCompatKey) {
+                  for (const [key, detail] of Object.entries(byCompatKey)) {
+                    if (detail?.support?.chrome === wfChromeSupport) {
                       matchingKeys.push(key);
                     }
                   }
