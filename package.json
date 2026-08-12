@@ -33,7 +33,7 @@
     "submodules:upgrade": "git submodule update --init --recursive --remote"
   },
   "devDependencies": {
-    "@types/node": "^25.7.0",
-    "web-features": "^3.27.0"
+    "@types/node": "^26.2.0",
+    "web-features": "^3.34.3"
   }
 }
