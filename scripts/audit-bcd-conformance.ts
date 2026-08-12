@@ -200,7 +200,7 @@ for (const file of csFiles) {
 }
 
 // Generate the report
-const artifactPath = '/Users/paulirish/.gemini/jetski/brain/53ae66da-7804-4064-adca-2daa45702e25/bcd_conformance_report.md';
+const artifactPath = path.resolve(projectRoot, 'bcd_conformance_report.md');
 
 let markdown = `# BCD and ChromeStatus Conformance Audit Report\n\n`;
 markdown += `This report analyzes the alignment between **ChromeStatus** milestones, **static BCD (web-features)** support records, and **empirical browser test results** (compiled from \`mdn-bcd-results\` for Chrome Desktop on Windows).\n\n`;
