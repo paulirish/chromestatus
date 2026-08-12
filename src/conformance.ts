@@ -18,6 +18,7 @@ export interface ConformanceAuditResult {
   bcdLagging: ConformanceRecord[];
   csStale: ConformanceRecord[];
   flagGaps: ConformanceRecord[];
+  coarseMapping: ConformanceRecord[];
   noEmpiricalData: ConformanceRecord[];
   noBcdKeys: ConformanceRecord[];
 }
@@ -74,6 +75,7 @@ export class ConformanceAuditor {
     const bcdLagging: ConformanceRecord[] = [];
     const csStale: ConformanceRecord[] = [];
     const flagGaps: ConformanceRecord[] = [];
+    const coarseMapping: ConformanceRecord[] = [];
     const noEmpiricalData: ConformanceRecord[] = [];
     const noBcdKeys: ConformanceRecord[] = [];
 
@@ -157,30 +159,40 @@ export class ConformanceAuditor {
                 : keys.join(', ')
             };
 
+            const isMilestoneInEmpiricalRange = wfMilestone !== null && wfMilestone >= minEmpVersion && wfMilestone <= maxEmpVersion;
+
             // Categorize based on alignment
-            if (wfMilestone !== null && !hasMismatch) {
-              // Perfect match
-              if (csMilestone === wfMilestone && wfMilestone === minEmpVersion) {
+            if (wfMilestone !== null) {
+              // 1. Aligned: CS and BCD agree, and their milestone is within the empirical range
+              if (csMilestone === wfMilestone && isMilestoneInEmpiricalRange) {
                 aligned.push(record);
               }
-              // BCD lagging ChromeStatus & Empirical
-              else if (csMilestone === minEmpVersion && wfMilestone > minEmpVersion) {
+              // 2. WebDX Coarse Mapping: BCD milestone is earlier than the earliest passing key
+              else if (wfMilestone < minEmpVersion) {
+                coarseMapping.push(record);
+              }
+              // 3. Static BCD Lagging: Empirical tests passed at/before CS milestone, but BCD is later
+              else if (minEmpVersion <= csMilestone && wfMilestone > csMilestone) {
                 bcdLagging.push(record);
               }
-              // ChromeStatus stale/wrong (BCD and Empirical align later)
-              else if (wfMilestone === minEmpVersion && csMilestone < minEmpVersion) {
+              // 4. ChromeStatus Stale: Empirical tests and BCD align, but CS is earlier/wrong
+              else if (wfMilestone >= minEmpVersion && wfMilestone <= maxEmpVersion && csMilestone < wfMilestone) {
                 csStale.push(record);
               }
-              // Empirical is later than both (Flag gate or late test addition)
+              // 5. Flag Gaps / Collector Late Tests: Empirical tests passed later than both CS and BCD records
               else if (minEmpVersion > csMilestone && minEmpVersion > wfMilestone) {
                 flagGaps.push(record);
               }
-              // Other discrepancies
+              // 6. Fallback/Complex cases
               else {
-                bcdLagging.push({ ...record, empirical: `${empiricalDisplay}${displayNote} (complex mismatch)` });
+                if (wfMilestone > maxEmpVersion) {
+                  bcdLagging.push(record);
+                } else {
+                  flagGaps.push(record);
+                }
               }
             } else {
-              // Mismatch or unsupported in static BCD
+              // BCD has no support recorded (wfMilestone === null)
               if (minEmpVersion <= csMilestone) {
                 bcdLagging.push(record);
               } else {
@@ -197,6 +209,7 @@ export class ConformanceAuditor {
       bcdLagging,
       csStale,
       flagGaps,
+      coarseMapping,
       noEmpiricalData,
       noBcdKeys
     };

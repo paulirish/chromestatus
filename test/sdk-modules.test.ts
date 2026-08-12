@@ -151,6 +151,49 @@ test('Conformance Auditor - Aligned Case', () => {
   assert.equal(result.bcdLagging.length, 0);
   assert.equal(result.csStale.length, 0);
   assert.equal(result.flagGaps.length, 0);
+  assert.equal(result.coarseMapping.length, 0);
+});
+
+test('Conformance Auditor - Coarse Mapping Case', () => {
+  const mockEmpiricalIndex = {
+    getSupport(bcdKey: string) {
+      if (bcdKey.includes('pagereveal')) {
+        return { majorVersion: 123, fullVersion: '123.0.0.0' };
+      }
+      return undefined;
+    }
+  } as unknown as EmpiricalSupportIndex;
+
+  const auditor = new ConformanceAuditor(mockEmpiricalIndex);
+
+  const mockFeature = {
+    id: 2,
+    name: "'pagereveal' event",
+    summary: "fires when a document is revealed",
+    web_feature: "view-transitions", // Coarse parent symbol
+    browsers: {
+      chrome: {
+        desktop: 123
+      }
+    }
+  } as unknown as ChromeStatusFeatureDetailed;
+
+  // Let's mock webFeatures structure locally for view-transitions
+  // In real test, it loads BCD keys from view-transitions: PageRevealEvent
+  // Our local mockEmpiricalIndex returns M123 for PageRevealEvent keys.
+  // And view-transitions static milestone in web-features is M111.
+  const result = auditor.audit([mockFeature]);
+
+  assert.equal(result.coarseMapping.length, 1);
+  assert.equal(result.coarseMapping[0].id, 2);
+  assert.equal(result.coarseMapping[0].csMilestone, 123);
+  assert.equal(result.coarseMapping[0].wfMilestone, "M111");
+  assert.ok(result.coarseMapping[0].empirical.startsWith("M123"));
+
+  assert.equal(result.aligned.length, 0);
+  assert.equal(result.bcdLagging.length, 0);
+  assert.equal(result.csStale.length, 0);
+  assert.equal(result.flagGaps.length, 0);
 });
 
 test('Alignment Auditor - Diagnostics', () => {

@@ -30,7 +30,7 @@ console.log(`Loaded ${featuresList.length} features. Running conformance audit..
 const auditor = new ConformanceAuditor(empiricalIndex);
 const auditResult = auditor.audit(featuresList);
 
-const { aligned, bcdLagging, csStale, flagGaps, noEmpiricalData, noBcdKeys } = auditResult;
+const { aligned, bcdLagging, csStale, flagGaps, coarseMapping, noEmpiricalData, noBcdKeys } = auditResult;
 
 // Generate the report
 const artifactPath = path.resolve(projectRoot, 'bcd_conformance_report.md');
@@ -38,13 +38,14 @@ const artifactPath = path.resolve(projectRoot, 'bcd_conformance_report.md');
 let markdown = `# BCD and ChromeStatus Conformance Audit Report\n\n`;
 markdown += `This report analyzes the alignment between **ChromeStatus** milestones, **static BCD (web-features)** support records, and **empirical browser test results** (compiled from \`mdn-bcd-results\` for Chrome Desktop on Windows).\n\n`;
 
-const totalAudited = aligned.length + bcdLagging.length + csStale.length + flagGaps.length + noEmpiricalData.length + noBcdKeys.length;
+const totalAudited = aligned.length + bcdLagging.length + csStale.length + flagGaps.length + coarseMapping.length + noEmpiricalData.length + noBcdKeys.length;
 
 markdown += `## Summary Metrics\n\n`;
 markdown += `- **Total Features Audited**: ${totalAudited}\n`;
 markdown += `- **Perfect Conformance** (CS = BCD = Empirical): ${aligned.length}\n`;
 markdown += `- **Static BCD Lagging** (Empirical passes at CS milestone, BCD is later): ${bcdLagging.length}\n`;
 markdown += `- **ChromeStatus Stale** (Empirical passes at BCD milestone, CS is earlier/incorrect): ${csStale.length}\n`;
+markdown += `- **WebDX Coarse Mapping** (BCD milestone is earlier than empirical tests due to shared broad symbol mapping): ${coarseMapping.length}\n`;
 markdown += `- **Flag Gaps / Collector Late Tests** (Empirical tests pass later than CS & BCD records): ${flagGaps.length}\n`;
 markdown += `- **No Empirical Test Data** (BCD keys present but none passed in collector logs): ${noEmpiricalData.length}\n`;
 markdown += `- **No BCD Keys Mapped** (WebDX symbol exists but has no BCD compat keys): ${noBcdKeys.length}\n\n`;
@@ -67,7 +68,15 @@ for (const entry of csStale.sort((a, b) => a.name.localeCompare(b.name))) {
   markdown += `| ${entry.name} | \`${entry.symbol}\` | **M${entry.csMilestone}** | ${entry.wfMilestone} | ${entry.empirical} | \`${entry.keys}\` | [ChromeStatus](https://chromestatus.com/feature/${entry.id}) |\n`;
 }
 
-markdown += `\n## 3. Flag Gating or Late Test Gaps (${flagGaps.length} features)\n`;
+markdown += `\n## 3. WebDX Coarse Mapping (${coarseMapping.length} features)\n`;
+markdown += `Features where the static BCD / WebDX entry uses a broad symbol mapped to an earlier release milestone, making the sub-feature appear supported earlier than when the empirical test suite first recorded passes:\n\n`;
+markdown += `| Feature Name | Symbol | CS Milestone | Static BCD | Empirical Passing | BCD Keys | Link |\n`;
+markdown += `| :--- | :--- | :--- | :--- | :--- | :--- | :--- |\n`;
+for (const entry of coarseMapping.sort((a, b) => a.name.localeCompare(b.name))) {
+  markdown += `| ${entry.name} | \`${entry.symbol}\` | M${entry.csMilestone} | ${entry.wfMilestone} | **${entry.empirical}** | \`${entry.keys}\` | [ChromeStatus](https://chromestatus.com/feature/${entry.id}) |\n`;
+}
+
+markdown += `\n## 4. Flag Gating or Late Test Gaps (${flagGaps.length} features)\n`;
 markdown += `Features where empirical tests passed *later* than both ChromeStatus and BCD records. This typically suggests the feature was initially flag-gated (and the test collector ran without the flag), or that test cases were only added to the collector at a later version:\n\n`;
 markdown += `| Feature Name | Symbol | CS Milestone | Static BCD | Empirical Passing | BCD Keys | Link |\n`;
 markdown += `| :--- | :--- | :--- | :--- | :--- | :--- | :--- |\n`;
@@ -75,7 +84,7 @@ for (const entry of flagGaps.sort((a, b) => a.name.localeCompare(b.name))) {
   markdown += `| ${entry.name} | \`${entry.symbol}\` | M${entry.csMilestone} | ${entry.wfMilestone} | **${entry.empirical}** | \`${entry.keys}\` | [ChromeStatus](https://chromestatus.com/feature/${entry.id}) |\n`;
 }
 
-markdown += `\n## 4. No Empirical Test Data (${noEmpiricalData.length} features)\n`;
+markdown += `\n## 5. No Empirical Test Data (${noEmpiricalData.length} features)\n`;
 markdown += `Features that have mapped BCD keys, but none of those keys have passing results in the collector logs:\n\n`;
 markdown += `| Feature Name | Symbol | CS Milestone | Static BCD | BCD Keys | Link |\n`;
 markdown += `| :--- | :--- | :--- | :--- | :--- | :--- |\n`;
@@ -83,7 +92,7 @@ for (const entry of noEmpiricalData.sort((a, b) => a.name.localeCompare(b.name))
   markdown += `| ${entry.name} | \`${entry.symbol}\` | M${entry.csMilestone} | ${entry.wfMilestone ? `M${entry.wfMilestone}` : 'unsupported'} | \`${entry.keys}\` | [ChromeStatus](https://chromestatus.com/feature/${entry.id}) |\n`;
 }
 
-markdown += `\n## 5. No BCD Keys Mapped (${noBcdKeys.length} features)\n`;
+markdown += `\n## 6. No BCD Keys Mapped (${noBcdKeys.length} features)\n`;
 markdown += `Features that are mapped to a WebDX symbol, but that symbol contains no BCD compat keys:\n\n`;
 markdown += `| Feature Name | Symbol | CS Milestone | Static BCD | Link |\n`;
 markdown += `| :--- | :--- | :--- | :--- | :--- |\n`;
