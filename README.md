@@ -129,12 +129,33 @@ To synchronize your local project checkout with the latest upstream snapshot sta
 pnpm run fetch
 ```
 
-### Available Scripts
-* `pnpm run fetch`: Downloads live REST endpoints into `data/raw/` caching layers and compiles production data structures natively.
-* `pnpm run download`: Isolates custom raw snapshot extraction blocks (incorporating proxy authentication configurations).
-* `pnpm run compile`: Operates exclusively on locally cached archives to regenerate mapping indexes rapidly during iterations.
-* `pnpm run audit:ot-symbols`: Outputs dual visual terminal views separating mapped WebDX origin trials from unmapped specific API extensions.
-* `pnpm run audit:flag-symbols`: Outputs segregated inventory views for capabilities gated behind runtime experimental switches.
-* `pnpm run audit:alignment`: Executes highly automated systematic validation probes enforcing absolute baseline schema continuity.
-* `pnpm run typecheck`: Verifies pure erasable syntax type declarations without emitting transpiled outputs.
-* `pnpm run test`: Executes isolated suite runs using native Node test runners (`node --test`).
+### Developer Scripts Guide
+
+To support developer workflows, the project provides several scripts divided into logical tasks:
+
+#### 1. Data Compilation Pipelines
+*   `pnpm run fetch`: Complete pipeline to sync the codebase: runs `download` then `compile`.
+*   `pnpm run download`: Downloads raw REST endpoints from ChromeStatus.com and collector configurations into `data/raw/` caching layers.
+*   `pnpm run compile`: Processes cached raw archives, runs verification checks, maps overrides, and writes the optimized database layers (`data/lite.json`, active index files, and individual feature files).
+
+#### 2. Conformance & Alignment Audits
+*   `pnpm run audit:conformance`: Compares ChromeStatus, static BCD support, and empirical `mdn-bcd-results` collector files to generate a comprehensive lag and stale metadata report. Saves the report to [**`bcd_conformance_report.md`**](file:///Users/paulirish/code/chromestatus/bcd_conformance_report.md).
+*   `pnpm run audit:alignment`: Runs diagnostics against ChromeStatus stubs mapping to the static `web-features` package catalog to report schema drift, redirects, collisions, or orphan symbols.
+
+#### 3. Diagnostic & Inventory Printers
+*   `pnpm run audit:ot-symbols`: Prints all active Origin Trial WebDX symbols based on pre-compiled active maps.
+*   `pnpm run audit:flag-symbols`: Prints all ChromeStatus features currently gated by active browser flags.
+*   `pnpm run audit:gated`: Prints a detailed inventory of all gated features (Origin Trials or flags) and flags suspicious old items that have already shipped.
+*   `pnpm run audit:mappings`: Prints a markdown join table connecting WebDX symbols to ChromeStatus proposal names and spec links.
+*   `pnpm run audit:unmapped-ots`: Identifies any active Origin Trials in ChromeStatus that are lacking mapped WebDX shortcodes.
+
+#### 4. Matching & Mapping Boostrap Helpers (Run manually)
+*   `node scripts/map-features-jaccard.ts`: Uses token similarity to suggest WebDX symbols for unmapped ChromeStatus features.
+*   `node scripts/cross-reference-unmapped-features.ts`: Matches unmapped features by matching ChromeStatus spec URLs against BCD specifications.
+
+---
+
+## 🧪 Testing & Verification
+
+*   `pnpm run typecheck`: Validates Type safety without emitting build assets.
+*   `pnpm run test`: Runs the test suite in `test/` using the native Node.js test runner (`node --test`). Includes unit coverage for all core SDK components, tokenizers, overrides, and similarity matchers.
