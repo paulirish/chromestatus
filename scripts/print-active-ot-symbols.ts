@@ -3,6 +3,44 @@ import { ChromeStatusClient } from '../src/index.ts';
 async function main() {
   const client = await ChromeStatusClient.create();
   
+  if (process.argv.includes('--json')) {
+    const activeStubs = client.getActiveOriginTrials();
+    const otMapping: Record<string, any> = {
+      unmapped: []
+    };
+
+    for (const f of activeStubs) {
+      const rawSym = f.web_feature;
+      const symbols = rawSym && rawSym !== 'Missing feature' && rawSym.toLowerCase() !== 'none'
+        ? rawSym.split(',').map(s => s.trim()).filter(Boolean)
+        : [];
+
+      if (symbols.length > 0) {
+        for (const symbol of symbols) {
+          otMapping[symbol] = {
+            chromestatus_url: `https://chromestatus.com/feature/${f.id}`
+          };
+        }
+      } else {
+        otMapping.unmapped.push({
+          name: f.name,
+          chromestatus_url: `https://chromestatus.com/feature/${f.id}`
+        });
+      }
+    }
+
+    const mappedKeys = Object.keys(otMapping).filter(k => k !== 'unmapped').sort();
+    const sortedOtMapping: Record<string, any> = {};
+    for (const key of mappedKeys) {
+      sortedOtMapping[key] = otMapping[key];
+    }
+    otMapping.unmapped.sort((a: any, b: any) => a.name.localeCompare(b.name));
+    sortedOtMapping.unmapped = otMapping.unmapped;
+
+    console.log(JSON.stringify(sortedOtMapping, null, 2));
+    return;
+  }
+  
   console.log("==================================================================");
   console.log("       AUTHORITATIVE ACTIVE ORIGIN TRIAL INVENTORY");
   console.log("==================================================================\n");

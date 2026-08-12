@@ -290,6 +290,50 @@ async function main() {
     }
   }
 
+  // Pre-map web_feature identifiers onto uniqueOption1 instances for synchronous querying and consistency
+  // Explicitly filter out unmapped sentinels like "None" or "Missing feature"
+  const webFeatureMap = new Map<number, string>();
+  for (const f of uniqueOption1) {
+    if (f && typeof f.name === 'string') {
+      const overrideSym = CUSTOM_WEB_FEATURE_OVERRIDES[f.name.trim()];
+      if (overrideSym) {
+        f.web_feature = overrideSym;
+        webFeatureMap.set(f.id, overrideSym);
+      } else if (f.web_feature && typeof f.web_feature === 'string') {
+        const cleanSym = f.web_feature.trim();
+        if (cleanSym !== '' && cleanSym !== 'Missing feature' && cleanSym.toLowerCase() !== 'none') {
+          f.web_feature = cleanSym;
+          webFeatureMap.set(f.id, cleanSym);
+        } else {
+          delete f.web_feature;
+        }
+      } else {
+        delete f.web_feature;
+      }
+
+      const sym = f.web_feature;
+      if (sym) {
+        const syms = sym.split(',').map((s: string) => s.trim()).filter(Boolean);
+        let maxYear: number | undefined = undefined;
+        for (const s of syms) {
+          const year = resolveWebFeatureBaselineYear(s);
+          if (year !== undefined) {
+            if (maxYear === undefined || year > maxYear) {
+              maxYear = year;
+            }
+          }
+        }
+        if (maxYear !== undefined) {
+          f.baseline_year = maxYear;
+        } else {
+          delete f.baseline_year;
+        }
+      } else {
+        delete f.baseline_year;
+      }
+    }
+  }
+
   // Strict Integrity Pre-checks: guarantee downloaded snapshot states are absolute and whole
   if (totalCount < 3000) {
     throw new Error(`Integrity validation failed: Reported total feature count (${totalCount}) is below acceptable historical baseline limits.`);
@@ -322,6 +366,51 @@ async function main() {
     JSON.stringify(experimentalFlagIds)
   );
 
+  // Generate OT Symbol Mapping JSON
+  console.log("Generating OT symbol mapping JSON...");
+  const otMapping: Record<string, any> = {
+    unmapped: []
+  };
+
+  for (const id of activeOtIds) {
+    const f = uniqueOption1.find(item => item.id === id);
+    if (!f) continue;
+
+    const rawSym = f.web_feature;
+    const symbols = rawSym && rawSym !== 'Missing feature' && rawSym.toLowerCase() !== 'none'
+      ? rawSym.split(',').map((s: string) => s.trim()).filter(Boolean)
+      : [];
+
+    if (symbols.length > 0) {
+      for (const symbol of symbols) {
+        otMapping[symbol] = {
+          chromestatus_url: `https://chromestatus.com/feature/${f.id}`
+        };
+      }
+    } else {
+      otMapping.unmapped.push({
+        name: f.name,
+        chromestatus_url: `https://chromestatus.com/feature/${f.id}`
+      });
+    }
+  }
+
+  // Sort WebDX keys and build sorted mapped object
+  const mappedKeys = Object.keys(otMapping).filter(k => k !== 'unmapped').sort();
+  const sortedOtMapping: Record<string, any> = {};
+  for (const key of mappedKeys) {
+    sortedOtMapping[key] = otMapping[key];
+  }
+  // Sort unmapped array by name
+  otMapping.unmapped.sort((a: any, b: any) => a.name.localeCompare(b.name));
+  sortedOtMapping.unmapped = otMapping.unmapped;
+
+  console.log(`Writing active Origin Trial symbol mapping to data/ot-mapping.json...`);
+  await fs.writeFile(
+    path.join(dataDir, 'ot-mapping.json'),
+    JSON.stringify(sortedOtMapping, null, 2)
+  );
+
   console.log("\nProcessing Lite array data from cache...");
   const option2Content = await fs.readFile(path.join(rawDir, 'features-lite.json'), 'utf8');
   const option2Data = JSON.parse(option2Content);
@@ -330,31 +419,12 @@ async function main() {
   const cleanOption2 = option2Features.filter(f => f && Number.isInteger(Number(f.id)));
   cleanOption2.sort((a, b) => Number(a.id) - Number(b.id));
 
-
-
-  // Pre-map web_feature identifiers onto Lite instances for synchronous querying
-  // Explicitly filter out unmapped sentinels like "None" or "Missing feature"
-  const webFeatureMap = new Map<number, string>();
-  for (const f of uniqueOption1) {
-    if (f && typeof f.name === 'string') {
-      const overrideSym = CUSTOM_WEB_FEATURE_OVERRIDES[f.name.trim()];
-      if (overrideSym) {
-        webFeatureMap.set(f.id, overrideSym);
-      } else if (f.web_feature && typeof f.web_feature === 'string') {
-        const cleanSym = f.web_feature.trim();
-        if (cleanSym !== '' && cleanSym !== 'Missing feature' && cleanSym.toLowerCase() !== 'none') {
-          webFeatureMap.set(f.id, cleanSym);
-        }
-      }
-    }
-  }
-
   for (const f of cleanOption2) {
     if (webFeatureMap.has(f.id)) {
       const sym = webFeatureMap.get(f.id);
       f.web_feature = sym;
       if (sym) {
-        const syms = sym.split(',').map(s => s.trim()).filter(Boolean);
+        const syms = sym.split(',').map((s: string) => s.trim()).filter(Boolean);
         let maxYear: number | undefined = undefined;
         for (const s of syms) {
           const year = resolveWebFeatureBaselineYear(s);
