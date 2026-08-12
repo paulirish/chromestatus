@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert';
 import { CUSTOM_WEB_FEATURE_OVERRIDES } from '../src/overrides.ts';
 import { tokenize, jaccardIndex, overlapCoefficient } from '../src/text-analyzer.ts';
+import { normalizeBaseUrl, extractAnchor, isSpecMatch } from '../src/spec-matcher.ts';
 
 test('Centralized Mapping Overrides', () => {
   assert.ok(CUSTOM_WEB_FEATURE_OVERRIDES);
@@ -30,4 +31,40 @@ test('Overlap Coefficient', () => {
   const setB = new Set(['apple', 'banana', 'cherry']);
   assert.equal(overlapCoefficient(setA, setB), 1.0);
   assert.equal(overlapCoefficient(new Set(), new Set(['a'])), 0);
+});
+
+test('Spec URL Normalization', () => {
+  assert.equal(normalizeBaseUrl('https://html.spec.whatwg.org/multipage/canvas.html#dom-canvas-todataurl'), 'https://html.spec.whatwg.org/multipage/canvas.html');
+  assert.equal(normalizeBaseUrl('https://html.spec.whatwg.org/multipage/canvas.html'), 'https://html.spec.whatwg.org/multipage/canvas.html');
+  assert.equal(normalizeBaseUrl(''), '');
+  assert.equal(normalizeBaseUrl(null), '');
+});
+
+test('Spec URL Anchor Extraction', () => {
+  assert.equal(extractAnchor('https://html.spec.whatwg.org/multipage/canvas.html#dom-canvas-todataurl'), 'dom-canvas-todataurl');
+  assert.equal(extractAnchor('https://html.spec.whatwg.org/multipage/canvas.html'), null);
+  assert.equal(extractAnchor(''), null);
+  assert.equal(extractAnchor(null), null);
+});
+
+test('Spec Matcher Alignment', () => {
+  assert.ok(isSpecMatch(
+    'https://html.spec.whatwg.org/multipage/canvas.html#dom-canvas-todataurl',
+    'https://html.spec.whatwg.org/multipage/canvas.html#dom-canvas-todataurl'
+  ));
+
+  assert.equal(isSpecMatch(
+    'https://html.spec.whatwg.org/multipage/canvas.html#dom-canvas-todataurl',
+    'https://html.spec.whatwg.org/multipage/canvas.html#dom-canvas-toblob'
+  ), false);
+
+  assert.ok(isSpecMatch(
+    'https://indexeddb.spec.whatwg.org/#dom-idbfactory-open',
+    'https://indexeddb.spec.whatwg.org/'
+  ));
+  
+  assert.equal(isSpecMatch(
+    'https://html.spec.whatwg.org/multipage/interaction.html#dom-dragevent',
+    'https://html.spec.whatwg.org/multipage/interaction.html#dom-datatransfer'
+  ), false);
 });
