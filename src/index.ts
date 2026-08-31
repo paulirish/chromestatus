@@ -138,7 +138,7 @@ export class ChromeStatusClient {
       for (const qt of queryTokens) {
         let hasMatch = false;
         for (const nt of r.nameTokens) {
-          if (nt.includes(qt)) {
+          if (nt === qt || nt.includes(qt)) {
             hasMatch = true;
             break;
           }
@@ -184,9 +184,8 @@ export class ChromeStatusClient {
    */
   getActiveOriginTrialWebFeatureIds(): string[] {
     const results = new Set<string>();
-    for (const id of this.originTrialIds) {
-      const record = this.searchIndex.find(r => r.id === id);
-      if (record?.symbol) {
+    for (const record of this.searchIndex) {
+      if (this.originTrialIds.has(record.id) && record.symbol) {
         results.add(record.symbol);
       }
     }
@@ -199,9 +198,8 @@ export class ChromeStatusClient {
    */
   getExperimentalFlagWebFeatureIds(): string[] {
     const results = new Set<string>();
-    for (const id of this.experimentalFlagIds) {
-      const record = this.searchIndex.find(r => r.id === id);
-      if (record?.symbol) {
+    for (const record of this.searchIndex) {
+      if (this.experimentalFlagIds.has(record.id) && record.symbol) {
         results.add(record.symbol);
       }
     }
@@ -215,9 +213,9 @@ export class ChromeStatusClient {
   getActiveOriginTrials(): ReadonlyArray<ChromeStatusFeatureStub> {
     const results: ChromeStatusFeatureStub[] = [];
     for (const id of this.originTrialIds) {
-      const record = this.searchIndex.find(r => r.id === id);
-      if (record) {
-        results.push(record.stub);
+      const stub = this.idMap.get(id);
+      if (stub) {
+        results.push(stub);
       }
     }
     return results;
@@ -230,9 +228,9 @@ export class ChromeStatusClient {
   getExperimentalFlagFeatures(): ReadonlyArray<ChromeStatusFeatureStub> {
     const results: ChromeStatusFeatureStub[] = [];
     for (const id of this.experimentalFlagIds) {
-      const record = this.searchIndex.find(r => r.id === id);
-      if (record) {
-        results.push(record.stub);
+      const stub = this.idMap.get(id);
+      if (stub) {
+        results.push(stub);
       }
     }
     return results;

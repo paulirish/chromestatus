@@ -80,6 +80,48 @@ test('ChromeStatusClient - Synchronous querying and Origin Trial indexing valida
   assert.equal(flagStubs[0].name, 'WebMCP');
 });
 
+test('ChromeStatusClient - Multi-symbol web_feature indexing & active OT/flag extraction', () => {
+  const mockStubs: ChromeStatusFeatureStub[] = [
+    {
+      id: 9001,
+      name: 'Multi Symbol Feature',
+      summary: 'Testing multiple comma-separated symbols',
+      category: 'API',
+      web_feature: 'sym-one, sym-two',
+      blink_components: ['Blink'],
+      star_count: 5,
+      is_released: false,
+      browsers: {
+        chrome: {
+          origintrial: true,
+          flag: true,
+          status: { text: 'In development', val: 3 },
+          owners: []
+        }
+      },
+      standards: { maturity: { short_text: 'WD', val: 2 } },
+      stage_types: [140]
+    }
+  ];
+
+  const client = new ChromeStatusClient(mockStubs, [9001], [9001]);
+
+  const f1 = client.findFeature('sym-one');
+  const f2 = client.findFeature('sym-two');
+  assert.notEqual(f1, undefined);
+  assert.notEqual(f2, undefined);
+  assert.equal(f1?.id, 9001);
+  assert.equal(f2?.id, 9001);
+
+  const otSymbols = client.getActiveOriginTrialWebFeatureIds();
+  assert.ok(otSymbols.includes('sym-one'), 'Must include sym-one in OT symbols');
+  assert.ok(otSymbols.includes('sym-two'), 'Must include sym-two in OT symbols');
+
+  const flagSymbols = client.getExperimentalFlagWebFeatureIds();
+  assert.ok(flagSymbols.includes('sym-one'), 'Must include sym-one in flag symbols');
+  assert.ok(flagSymbols.includes('sym-two'), 'Must include sym-two in flag symbols');
+});
+
 test('ChromeStatusClient - Static factory initializer loads snapshot archives dynamically', async () => {
   const client = await ChromeStatusClient.create();
   

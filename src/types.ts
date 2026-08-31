@@ -3,14 +3,41 @@
  * Designed for high-performance client indexing and lazy payload evaluation.
  */
 
-export type StageType = 
-  | 110 // Intent to Prototype
-  | 120 // Dev Trial
-  | 130 // Intent to Experiment
-  | 140 // Origin Trial
-  | 150 // Origin Trial (Active / Specific)
-  | 160 // Intent to Ship
-  | 410 | 430 | 450 | 460 | 470; // Deprecation/Removal stages
+/**
+ * Official ChromeStatus stage type definitions derived from chromium-dashboard stage mappings.
+ */
+export const STAGE_TYPES = {
+  // Blink standard feature lifecycle process (110–160)
+  STAGE_BLINK_INCUBATE: 110,                     // Intent to Prototype / Incubate
+  STAGE_BLINK_PROTOTYPE: 120,                    // Dev Trial / Prototype
+  STAGE_BLINK_DEV_TRIAL: 130,                    // Intent to Experiment / Dev Trial
+  STAGE_BLINK_ORIGIN_TRIAL: 140,                 // Origin Trial
+  STAGE_BLINK_EXTEND_ORIGIN_TRIAL: 150,          // Extend Origin Trial / Origin Trial Active
+  STAGE_BLINK_SHIPPED: 160,                      // Intent to Ship / Shipped
+
+  // Deprecation and removal process (410–470)
+  STAGE_DEPRECATION_ID_TO_DEPRECATE: 410,        // Intent to Deprecate and Remove
+  STAGE_DEPRECATION_DEV_TRIAL: 430,             // Deprecation Dev Trial
+  STAGE_DEPRECATION_DEPRECATION_TRIAL: 450,     // Deprecation Trial / Origin Trial
+  STAGE_DEPRECATION_EXTEND_DEPRECATION_TRIAL: 460, // Extend Deprecation Trial
+  STAGE_DEPRECATION_REMOVED: 470,                // Deprecation Removed
+
+  // Semantic convenience aliases
+  INTENT_TO_PROTOTYPE: 110,
+  DEV_TRIAL: 120,
+  INTENT_TO_EXPERIMENT: 130,
+  ORIGIN_TRIAL: 140,
+  ORIGIN_TRIAL_ACTIVE: 150,
+  EXTEND_ORIGIN_TRIAL: 150,
+  INTENT_TO_SHIP: 160,
+  DEPRECATION_INTENT: 410,
+  DEPRECATION_DEV_TRIAL: 430,
+  DEPRECATION_TRIAL: 450,
+  EXTEND_DEPRECATION_TRIAL: 460,
+  DEPRECATION_REMOVED: 470,
+} as const;
+
+export type StageType = typeof STAGE_TYPES[keyof typeof STAGE_TYPES];
 
 export interface Stage {
   id: number;

@@ -1,5 +1,6 @@
 import { features as defaultWebFeatures } from 'web-features';
 import { CUSTOM_WEB_FEATURE_OVERRIDES } from './overrides.ts';
+import { STAGE_TYPES } from './types.ts';
 
 /**
  * Extracts the baseline implementation year for a given WebDX symbol.
@@ -53,11 +54,12 @@ export function evaluateActiveOriginTrial(
   const intentStage = typeof f.intent_stage === 'string' ? f.intent_stage.toLowerCase() : '';
 
   // Check 1: Absolute alignment verification against live Google OT API mappings
+  // Check 1: Absolute alignment verification against live Google OT API mappings
   if (otApiActiveFeatureIds.has(f.id)) {
     isGenuinelyActive = true;
   } else if (f.stages && Array.isArray(f.stages)) {
     for (const s of f.stages) {
-      if (s && s.stage_type === 150 && typeof s.ot_chromium_trial_name === 'string' && otApiActiveTrialNames.has(s.ot_chromium_trial_name)) {
+      if (s && (s.stage_type === STAGE_TYPES.ORIGIN_TRIAL || s.stage_type === STAGE_TYPES.ORIGIN_TRIAL_ACTIVE) && typeof s.ot_chromium_trial_name === 'string' && otApiActiveTrialNames.has(s.ot_chromium_trial_name)) {
         isGenuinelyActive = true;
         break;
       }
@@ -78,7 +80,7 @@ export function evaluateActiveOriginTrial(
     if (!isShippedOrDead) {
       if (f.stages && Array.isArray(f.stages)) {
         for (const s of f.stages) {
-          if (s && s.stage_type === 150) {
+          if (s && (s.stage_type === STAGE_TYPES.ORIGIN_TRIAL || s.stage_type === STAGE_TYPES.ORIGIN_TRIAL_ACTIVE)) {
             const startM = s.desktop_first !== null && s.desktop_first !== undefined ? Number(s.desktop_first) : 0;
             if (!isNaN(startM) && startM > activeStableMilestone) {
               continue;
@@ -102,7 +104,7 @@ export function evaluateActiveOriginTrial(
 
       if (!isGenuinelyActive && statusText.includes('origin trial')) {
         const hasCompletedOt = f.stages?.some((s: any) => {
-          if (s.stage_type === 150 && s.desktop_last !== null && s.desktop_last !== undefined) {
+          if ((s.stage_type === STAGE_TYPES.ORIGIN_TRIAL || s.stage_type === STAGE_TYPES.ORIGIN_TRIAL_ACTIVE) && s.desktop_last !== null && s.desktop_last !== undefined) {
             const m = Number(s.desktop_last);
             return !isNaN(m) && m < activeStableMilestone;
           }
@@ -119,7 +121,7 @@ export function evaluateActiveOriginTrial(
   // strictly drop speculative fallback marking to lock output alignment natively.
   if (isGenuinelyActive && (otApiActiveFeatureIds.size > 0 || otApiActiveTrialNames.size > 0)) {
     if (!otApiActiveFeatureIds.has(f.id)) {
-      const hasTrialStr = f.stages?.some((s: any) => s.stage_type === 150 && typeof s.ot_chromium_trial_name === 'string' && otApiActiveTrialNames.has(s.ot_chromium_trial_name));
+      const hasTrialStr = f.stages?.some((s: any) => (s.stage_type === STAGE_TYPES.ORIGIN_TRIAL || s.stage_type === STAGE_TYPES.ORIGIN_TRIAL_ACTIVE) && typeof s.ot_chromium_trial_name === 'string' && otApiActiveTrialNames.has(s.ot_chromium_trial_name));
       if (!hasTrialStr) {
         isGenuinelyActive = false;
       }

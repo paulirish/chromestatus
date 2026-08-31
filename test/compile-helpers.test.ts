@@ -49,6 +49,15 @@ test('evaluateActiveOriginTrial - basic cases', () => {
   };
   assert.equal(evaluateActiveOriginTrial(feature2, activeStableMilestone, otApiActiveFeatureIds, otApiActiveTrialNames), true);
 
+  // Case 2b: Stage type 140 matching OT API Trial Name
+  const feature2b = {
+    id: 1020,
+    stages: [
+      { stage_type: 140, ot_chromium_trial_name: 'ActiveTrialName' }
+    ]
+  };
+  assert.equal(evaluateActiveOriginTrial(feature2b, activeStableMilestone, otApiActiveFeatureIds, otApiActiveTrialNames), true);
+
   // Case 3: Empty stages, no match
   const feature3 = { id: 103, stages: [] };
   assert.equal(evaluateActiveOriginTrial(feature3, activeStableMilestone, otApiActiveFeatureIds, otApiActiveTrialNames), false);
