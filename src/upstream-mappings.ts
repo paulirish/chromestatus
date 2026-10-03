@@ -32,25 +32,25 @@ export interface UpstreamMappings {
 
 export const DEFAULT_MAPPINGS_DIR = new URL('../submodules/web-features-mappings/mappings/', import.meta.url);
 
-async function readRecord(dir: URL, file: string): Promise<Record<string, any>> {
+async function readRecord<T>(dir: URL, file: string): Promise<Readonly<Record<string, T>>> {
   const url = new URL(file, dir);
   const parsed: unknown = JSON.parse(await fs.readFile(url, 'utf8'));
   if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
     throw new Error(`web-features-mappings: ${file} is not a JSON object keyed by web-features ID.`);
   }
-  return parsed as Record<string, any>;
+  return parsed as Record<string, T>;
 }
 
 export async function loadUpstreamMappings(dir: URL = DEFAULT_MAPPINGS_DIR): Promise<UpstreamMappings> {
   const [chromeStatus, bugs, mdnDocs, useCounters, standardsPositions, wpt, interop, developerSignals] = await Promise.all([
-    readRecord(dir, 'chrome-status.json'),
-    readRecord(dir, 'bugs.json'),
-    readRecord(dir, 'mdn-docs.json'),
-    readRecord(dir, 'chrome-use-counters.json'),
-    readRecord(dir, 'standards-positions.json'),
-    readRecord(dir, 'wpt.json'),
-    readRecord(dir, 'interop.json'),
-    readRecord(dir, 'developer-signals.json'),
+    readRecord<ReadonlyArray<UpstreamChromeStatusEntry>>(dir, 'chrome-status.json'),
+    readRecord<UpstreamBugs>(dir, 'bugs.json'),
+    readRecord<ReadonlyArray<UpstreamMdnDoc>>(dir, 'mdn-docs.json'),
+    readRecord<UpstreamUseCounter>(dir, 'chrome-use-counters.json'),
+    readRecord<ReadonlyArray<UpstreamStandardsPosition>>(dir, 'standards-positions.json'),
+    readRecord<UpstreamWpt>(dir, 'wpt.json'),
+    readRecord<ReadonlyArray<UpstreamInterop>>(dir, 'interop.json'),
+    readRecord<UpstreamDeveloperSignal>(dir, 'developer-signals.json'),
   ]);
   return Object.freeze({ chromeStatus, bugs, mdnDocs, useCounters, standardsPositions, wpt, interop, developerSignals });
 }

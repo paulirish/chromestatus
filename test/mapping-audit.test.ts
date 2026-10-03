@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { features as webFeatures } from 'web-features';
 import { CUSTOM_WEB_FEATURE_OVERRIDES } from '../src/overrides.ts';
-import { parseWebFeatureValue } from '../src/compile-helpers.ts';
 import { loadUpstreamMappings, type UpstreamMappings } from '../src/upstream-mappings.ts';
 import {
   auditOverrides,
@@ -126,7 +125,7 @@ test('buildWebFeatureExtras keeps only published fields and omits empty IDs', as
   const extras = buildWebFeatureExtras(['grid-lanes', 'canvas', 'grid-lanes'], {
     ...upstream,
     useCounters: { 'grid-lanes': { percentageOfPageLoad: 0.5, url: 'https://chromestatus.com/metrics/webfeature/timeline/popularity/1' } },
-    standardsPositions: { 'grid-lanes': [{ vendor: 'mozilla', position: 'positive', url: 'https://github.com/mozilla/standards-positions/issues/1', concerns: [] } as any] },
+    standardsPositions: { 'grid-lanes': [Object.assign({ vendor: 'mozilla', position: 'positive', url: 'https://github.com/mozilla/standards-positions/issues/1' }, { concerns: [] })] },
   });
   assert.deepEqual(Object.keys(extras), ['grid-lanes']);
   assert.deepEqual(extras['grid-lanes'].standardsPositions, [{ vendor: 'mozilla', position: 'positive', url: 'https://github.com/mozilla/standards-positions/issues/1' }]);
