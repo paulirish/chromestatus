@@ -202,11 +202,30 @@ export function disambiguateFeatureNames(features: any[]): void {
 }
 
 /**
+ * Rewrites IDs that web-features marks as `moved` to their redirect target.
+ * Returns the input unchanged when nothing moved; `split` IDs are left alone since the right target is ambiguous.
+ */
+export function resolveMovedWebFeatureIds(value: string, webFeaturesCatalog: any = defaultWebFeatures): string {
+  const ids = value.split(',').map(s => s.trim()).filter(Boolean);
+  let changed = false;
+  const resolved = ids.map(id => {
+    const entry = Object.hasOwn(webFeaturesCatalog, id) ? webFeaturesCatalog[id] : undefined;
+    if (entry?.kind === 'moved' && typeof entry.redirect_target === 'string') {
+      changed = true;
+      return entry.redirect_target;
+    }
+    return id;
+  });
+  return changed ? [...new Set(resolved)].join(',') : value;
+}
+
+/**
  * Maps WebDX symbols and resolves max baseline support years.
  */
 export function assignWebFeaturesAndBaselineYears(
   features: any[],
-  baselineYearResolver: (symbol: string) => number | undefined = resolveWebFeatureBaselineYear
+  baselineYearResolver: (symbol: string) => number | undefined = resolveWebFeatureBaselineYear,
+  webFeaturesCatalog: any = defaultWebFeatures
 ): Map<number, string> {
   const webFeatureMap = new Map<number, string>();
   for (const f of features) {
@@ -218,8 +237,9 @@ export function assignWebFeaturesAndBaselineYears(
       } else if (f.web_feature && typeof f.web_feature === 'string') {
         const cleanSym = f.web_feature.trim();
         if (cleanSym !== '' && cleanSym !== 'Missing feature' && cleanSym.toLowerCase() !== 'none') {
-          f.web_feature = cleanSym;
-          webFeatureMap.set(f.id, cleanSym);
+          const currentSym = resolveMovedWebFeatureIds(cleanSym, webFeaturesCatalog);
+          f.web_feature = currentSym;
+          webFeatureMap.set(f.id, currentSym);
         } else {
           delete f.web_feature;
         }

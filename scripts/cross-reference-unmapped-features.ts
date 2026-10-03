@@ -1,6 +1,10 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { features as webFeatures } from 'web-features';
+import { CUSTOM_WEB_FEATURE_OVERRIDES } from '../src/overrides.ts';
+import { MONOLITHIC_SYMBOLS, isSpecMatch } from '../src/spec-matcher.ts';
+import { disambiguateFeatureNames } from '../src/compile-helpers.ts';
+import { parseWebFeatureValue } from '../src/upstream-mappings.ts';
 
 async function main() {
   const rawPath = path.resolve(process.cwd(), 'data', 'raw', 'features-verbose.json');
@@ -15,53 +19,8 @@ async function main() {
   const verboseData = JSON.parse(verboseContent);
   const allFeatures: any[] = Array.isArray(verboseData?.features) ? verboseData.features : [];
 
-  // Compile-time overrides dictionary to identify already mapped features
-  const CUSTOM_WEB_FEATURE_OVERRIDES: Record<string, string> = {
-    "HTML-in-canvas": "canvas-html",
-    "Numeric separators": "numeric-separators",
-    "CSS :open pseudo-class": "open-pseudo",
-    "Prompt API Sampling Parameters": "languagemodel",
-    "Web app HTML install element": "install",
-    "Digital Credentials API (issuance support)": "digital-credentials",
-    "Prerendering cross-origin iframes": "speculation-rules",
-    "Proofreader API": "languagemodel",
-    "WebMCP": "declarative-webmcp,navigator-modelcontext"
-  };
-
-  // Systematic Title Disambiguation logic matching compile-data.ts
-  // Ensures unique feature names across the catalog
-  const seenNames = new Set<string>();
-  for (const f of allFeatures) {
-    if (f && typeof f.name === 'string') {
-      let cleanName = f.name.trim();
-      const baseName = cleanName;
-      let counter = 2;
-      while (seenNames.has(cleanName.toLowerCase())) {
-        cleanName = `${baseName} (Phase ${counter})`;
-        counter++;
-      }
-      seenNames.add(cleanName.toLowerCase());
-      f.name = cleanName;
-    }
-  }
-
-  const normalizeBaseUrl = (url: string | null | undefined) => {
-    if (!url) return '';
-    try {
-      const parsed = new URL(url);
-      return `${parsed.origin}${parsed.pathname}`.replace(/\/$/, '');
-    } catch {
-      return url.trim().replace(/\/$/, '').split('#')[0];
-    }
-  };
-
-  const extractAnchor = (url: string | null | undefined) => {
-    if (!url || !url.includes('#')) return null;
-    return url.split('#')[1];
-  };
-
-  // Exclude broad monolithic specs from matching granular entries
-  const monolithicSymbols = new Set(['html', 'dom', 'css', 'fetch', 'xhr', 'svg', 'webappsec']);
+  // Ensures unique feature names across the catalog, matching compile-data.ts
+  disambiguateFeatureNames(allFeatures);
 
   const verifiedMappings: {
     featureName: string;
@@ -75,19 +34,7 @@ async function main() {
     if (!feature || !feature.name) continue;
 
     const cleanName = feature.name.trim();
-    const overrideSym = CUSTOM_WEB_FEATURE_OVERRIDES[cleanName];
-    
-    let isUnmapped = false;
-    if (!overrideSym) {
-      const currentWebFeature = feature.web_feature;
-      if (!currentWebFeature || 
-          currentWebFeature === 'Missing feature' || 
-          currentWebFeature.toLowerCase() === 'none' || 
-          currentWebFeature.trim() === '') {
-        isUnmapped = true;
-      }
-    }
-
+    const isUnmapped = !Object.hasOwn(CUSTOM_WEB_FEATURE_OVERRIDES, cleanName) && parseWebFeatureValue(feature.web_feature).length === 0;
     if (!isUnmapped) continue;
 
     // Extract absolute specification links
@@ -100,35 +47,16 @@ async function main() {
 
     let granularSymbolMatched: string | null = null;
 
+    // Exclude broad monolithic specs from matching granular entries
     for (const [symbol, wfData] of Object.entries(webFeatures)) {
-      if (wfData.kind !== 'feature' || monolithicSymbols.has(symbol) || symbol.length <= 2) continue;
-      const wfSpecs = wfData.spec || [];
-      
-      for (const dSpec of documentedSpecs) {
-        const baseDSpec = normalizeBaseUrl(dSpec);
-        const anchorDSpec = extractAnchor(dSpec);
-        if (!baseDSpec) continue;
-
-        for (const wSpec of wfSpecs) {
-          const baseWSpec = normalizeBaseUrl(wSpec);
-          const anchorWSpec = extractAnchor(wSpec);
-          if (!baseWSpec) continue;
-
-          if (baseDSpec === baseWSpec || baseWSpec.startsWith(baseDSpec) || baseDSpec.startsWith(baseWSpec)) {
-            // For broad standard web URLs, enforce tight alignment to prevent mapping standard base pages to granular entries
-            if (baseDSpec.includes('html.spec.whatwg.org') || baseDSpec.includes('w3.org')) {
-              if (!anchorDSpec || !anchorWSpec || anchorDSpec !== anchorWSpec) {
-                continue;
-              }
-            }
-            granularSymbolMatched = symbol;
-            break;
-          }
-        }
-        if (granularSymbolMatched) break;
+      if (wfData.kind !== 'feature' || MONOLITHIC_SYMBOLS.has(symbol) || symbol.length <= 2) continue;
+      const wfSpecs: string[] = [wfData.spec ?? []].flat();
+      if (documentedSpecs.some(dSpec => wfSpecs.some(wSpec => isSpecMatch(dSpec, wSpec)))) {
+        granularSymbolMatched = symbol;
+        break;
       }
-      if (granularSymbolMatched) break;
     }
+
 
     if (granularSymbolMatched) {
       verifiedMappings.push({
