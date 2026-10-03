@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { features as webFeatures } from 'web-features';
 import { CUSTOM_WEB_FEATURE_OVERRIDES } from '../src/overrides.ts';
-import { resolveMovedWebFeatureIds } from '../src/compile-helpers.ts';
-import { loadUpstreamMappings, parseWebFeatureValue, type UpstreamMappings } from '../src/upstream-mappings.ts';
+import { parseWebFeatureValue } from '../src/compile-helpers.ts';
+import { loadUpstreamMappings, type UpstreamMappings } from '../src/upstream-mappings.ts';
 import {
   auditOverrides,
   suggestChromeStatusEdits,
@@ -49,20 +49,6 @@ const features: RawFeatureLike[] = [
   { id: 8, name: 'Issue link', web_feature: 'https://github.com/web-platform-dx/web-features/issues/1' },
   { id: 9, name: 'Split value', web_feature: 'single-color-gradients' },
 ];
-
-test('parseWebFeatureValue drops placeholders and splits lists', () => {
-  assert.deepEqual(parseWebFeatureValue('Missing feature'), []);
-  assert.deepEqual(parseWebFeatureValue('None'), []);
-  assert.deepEqual(parseWebFeatureValue(null), []);
-  assert.deepEqual(parseWebFeatureValue(' a , b '), ['a', 'b']);
-});
-
-test('resolveMovedWebFeatureIds rewrites moved IDs only', () => {
-  assert.equal(resolveMovedWebFeatureIds('masonry', catalog), 'grid-lanes');
-  assert.equal(resolveMovedWebFeatureIds('masonry,grid-lanes', catalog), 'grid-lanes');
-  assert.equal(resolveMovedWebFeatureIds('single-color-gradients', catalog), 'single-color-gradients');
-  assert.equal(resolveMovedWebFeatureIds(' canvas ', catalog), ' canvas ', 'unchanged input is returned as-is');
-});
 
 test('auditOverrides classifies each override', () => {
   const overrides = {

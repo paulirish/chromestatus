@@ -3,8 +3,7 @@ import path from 'node:path';
 import { features as webFeatures } from 'web-features';
 import { CUSTOM_WEB_FEATURE_OVERRIDES } from '../src/overrides.ts';
 import { BROAD_WEB_FEATURE_IDS, isSpecMatch } from '../src/spec-matcher.ts';
-import { disambiguateFeatureNames } from '../src/compile-helpers.ts';
-import { parseWebFeatureValue } from '../src/upstream-mappings.ts';
+import { disambiguateFeatureNames, parseWebFeatureValue } from '../src/compile-helpers.ts';
 
 async function main() {
   const rawPath = path.resolve(process.cwd(), 'data', 'raw', 'features-verbose.json');

@@ -5,8 +5,7 @@ import { tokenize, jaccardIndex, overlapCoefficient } from '../src/text-analyzer
 import { normalizeBaseUrl, extractAnchor, isSpecMatch } from '../src/spec-matcher.ts';
 import { CollectorResultsIndex } from '../src/collector-results-index.ts';
 import { ConformanceAuditor } from '../src/conformance.ts';
-import { AlignmentAuditor } from '../src/alignment.ts';
-import type { ChromeStatusFeatureVerbose, ChromeStatusFeatureBasic } from '../src/types.ts';
+import type { ChromeStatusFeatureVerbose } from '../src/types.ts';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
@@ -131,7 +130,7 @@ test('Conformance Auditor - Conformant Case', () => {
     id: 1,
     name: "Popover API",
     summary: "A mechanism for displaying popovers",
-    web_feature: "popover",
+    web_feature_ids: ["popover"],
     browsers: {
       chrome: {
         desktop: 116
@@ -170,7 +169,7 @@ test('Conformance Auditor - Coarse Mapping Case', () => {
     id: 2,
     name: "'pagereveal' event",
     summary: "fires when a document is revealed",
-    web_feature: "view-transitions", // Coarse parent web feature ID
+    web_feature_ids: ["view-transitions"], // Coarse parent web feature ID
     browsers: {
       chrome: {
         desktop: 123
@@ -194,110 +193,4 @@ test('Conformance Auditor - Coarse Mapping Case', () => {
   assert.equal(result.bcdLagging.length, 0);
   assert.equal(result.csStale.length, 0);
   assert.equal(result.flagGaps.length, 0);
-});
-
-test('Alignment Auditor - Diagnostics', () => {
-  const mockFeatures: ChromeStatusFeatureBasic[] = [
-    {
-      id: 10,
-      name: "Orphan Feature",
-      summary: "Summary",
-      web_feature: "non-existent-symbol",
-      category: "CSS",
-      blink_components: [],
-      star_count: 0,
-      is_released: true,
-      browsers: { chrome: { status: { text: "Enabled by default" } } } as any,
-      standards: { maturity: { short_text: "ED" } } as any,
-      stage_types: []
-    },
-    {
-      id: 20,
-      name: "Moved Feature",
-      summary: "Summary",
-      web_feature: "display-grid-lanes",
-      category: "CSS",
-      blink_components: [],
-      star_count: 0,
-      is_released: true,
-      browsers: { chrome: { status: { text: "Enabled by default" } } } as any,
-      standards: { maturity: { short_text: "ED" } } as any,
-      stage_types: []
-    },
-    {
-      id: 25,
-      name: "Split Feature",
-      summary: "Summary",
-      web_feature: "single-color-gradients",
-      category: "CSS",
-      blink_components: [],
-      star_count: 0,
-      is_released: true,
-      browsers: { chrome: { status: { text: "Enabled by default" } } } as any,
-      standards: { maturity: { short_text: "ED" } } as any,
-      stage_types: []
-    },
-    {
-      id: 30,
-      name: "Drifting Feature",
-      summary: "Summary",
-      web_feature: "grid",
-      category: "CSS",
-      blink_components: [],
-      star_count: 0,
-      is_released: true,
-      browsers: { chrome: { status: { text: "Enabled in Chrome 50" } } } as any,
-      standards: { maturity: { short_text: "ED" } } as any,
-      stage_types: []
-    },
-    {
-      id: 41,
-      name: "Collision Feature 1",
-      summary: "Summary",
-      web_feature: "flexbox",
-      category: "CSS",
-      blink_components: [],
-      star_count: 0,
-      is_released: true,
-      browsers: { chrome: { status: { text: "Enabled by default" } } } as any,
-      standards: { maturity: { short_text: "ED" } } as any,
-      stage_types: []
-    },
-    {
-      id: 42,
-      name: "Collision Feature 2",
-      summary: "Summary",
-      web_feature: "flexbox",
-      category: "CSS",
-      blink_components: [],
-      star_count: 0,
-      is_released: true,
-      browsers: { chrome: { status: { text: "Enabled by default" } } } as any,
-      standards: { maturity: { short_text: "ED" } } as any,
-      stage_types: []
-    }
-  ];
-
-  const report = AlignmentAuditor.run(mockFeatures);
-
-  assert.deepEqual({
-    orphans: report.orphans.map(({ featureId, ...rest }) => rest),
-    redirects: report.redirects.map(({ featureId, ...rest }) => rest),
-    milestoneDrift: report.milestoneDrift.map(({ featureId, ...rest }) => rest),
-    collisions: report.collisions.map(({ featureIds, ...rest }) => rest),
-  }, {
-    orphans: [
-      { featureName: "Orphan Feature", webFeatureId: "non-existent-symbol" },
-    ],
-    redirects: [
-      { featureName: "Moved Feature", fromWebFeatureId: "display-grid-lanes", kind: "moved", target: "grid-lanes" },
-      { featureName: "Split Feature", fromWebFeatureId: "single-color-gradients", kind: "split", target: ["gradients", "conic-gradients"] },
-    ],
-    milestoneDrift: [
-      { featureName: "Drifting Feature", webFeatureId: "grid", csMilestone: "M50", wfMilestone: "M57" },
-    ],
-    collisions: [
-      { webFeatureId: "flexbox", featureNames: ["Collision Feature 1", "Collision Feature 2"] },
-    ],
-  });
 });

@@ -1,174 +1,106 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  parseWebFeatureValue,
+  resolveMovedWebFeatureId,
+  resolveWebFeatureIds,
   resolveWebFeatureBaselineYear,
-  evaluateActiveOriginTrial,
-  evaluateBehindFlag,
+  resolveBaselineYear,
+  resolveGatedBy,
   disambiguateFeatureNames,
-  assignWebFeaturesAndBaselineYears
+  type OriginTrialContext,
+  type WebFeaturesCatalog,
 } from '../src/compile-helpers.ts';
 
-test('resolveWebFeatureBaselineYear', () => {
-  // Mock web-features catalog
-  const mockCatalog = {
-    'feature-a': {
-      status: { baseline_low_date: '2024-05-10' }
-    },
-    'feature-b': {
-      kind: 'moved',
-      redirect_target: 'feature-a'
-    },
-    'feature-c': {
-      status: {}
-    },
-    'feature-d': {}
-  };
+const catalog: WebFeaturesCatalog = {
+  'feature-a': { kind: 'feature', status: { baseline_low_date: '2024-05-10' } },
+  'feature-b': { kind: 'moved', redirect_target: 'feature-a' },
+  'feature-c': { kind: 'feature', status: {} },
+  'feature-s': { kind: 'split', redirect_targets: ['feature-a', 'feature-c'] },
+  'canvas-html': { kind: 'feature' },
+};
 
-  assert.equal(resolveWebFeatureBaselineYear('feature-a', mockCatalog), 2024);
-  assert.equal(resolveWebFeatureBaselineYear('feature-b', mockCatalog), 2024); // Resolves redirect
-  assert.equal(resolveWebFeatureBaselineYear('feature-c', mockCatalog), undefined);
-  assert.equal(resolveWebFeatureBaselineYear('feature-d', mockCatalog), undefined);
-  assert.equal(resolveWebFeatureBaselineYear('unknown-feature', mockCatalog), undefined);
+test('web feature ID resolution', () => {
+  const ids = (name: string, web_feature: string | null) => resolveWebFeatureIds({ name, web_feature }, catalog);
+  assert.deepEqual({
+    parsePlaceholders: ['Missing feature', 'None', '', null].map(parseWebFeatureValue),
+    parseList: parseWebFeatureValue(' a , b '),
+    moved: resolveMovedWebFeatureId('feature-b', catalog),
+    split: resolveMovedWebFeatureId('feature-s', catalog),
+    unknown: resolveMovedWebFeatureId('unknown', catalog),
+    override: ids('HTML-in-canvas', 'canvas'),
+    overrideIgnoresPadding: ids('  HTML-in-canvas ', null),
+    listMovedDeduped: ids('Feature A', '  feature-a, Feature-B  '),
+    placeholder: ids('Feature B', 'Missing feature'),
+  }, {
+    parsePlaceholders: [[], [], [], []],
+    parseList: ['a', 'b'],
+    moved: 'feature-a',
+    split: 'feature-s',
+    unknown: 'unknown',
+    override: ['canvas-html'],
+    overrideIgnoresPadding: ['canvas-html'],
+    listMovedDeduped: ['feature-a'],
+    placeholder: [],
+  });
 });
 
-test('evaluateActiveOriginTrial - basic cases', () => {
-  const activeStableMilestone = 120;
-  const otApiActiveFeatureIds = new Set([101]);
-  const otApiActiveTrialNames = new Set(['ActiveTrialName']);
-
-  // Case 1: Matching OT API Feature ID
-  const feature1 = { id: 101, stages: [] };
-  assert.equal(evaluateActiveOriginTrial(feature1, activeStableMilestone, otApiActiveFeatureIds, otApiActiveTrialNames), true);
-
-  // Case 2: Matching OT API Trial Name inside stages
-  const feature2 = {
-    id: 102,
-    stages: [
-      { stage_type: 150, ot_chromium_trial_name: 'ActiveTrialName' }
-    ]
-  };
-  assert.equal(evaluateActiveOriginTrial(feature2, activeStableMilestone, otApiActiveFeatureIds, otApiActiveTrialNames), true);
-
-  // Case 3: Empty stages, no match
-  const feature3 = { id: 103, stages: [] };
-  assert.equal(evaluateActiveOriginTrial(feature3, activeStableMilestone, otApiActiveFeatureIds, otApiActiveTrialNames), false);
+test('baseline year', () => {
+  const year = (id: string) => resolveWebFeatureBaselineYear(id, catalog);
+  assert.deepEqual(
+    ['feature-a', 'feature-b', 'feature-c', 'unknown'].map(year),
+    [2024, 2024, undefined, undefined]
+  );
+  const years: Record<string, number> = { x: 2019, y: 2025 };
+  assert.deepEqual(
+    [[], ['x'], ['x', 'y'], ['x', 'none']].map(ids => resolveBaselineYear(ids, id => years[id])),
+    [undefined, 2019, 2025, 2019]
+  );
 });
 
-test('evaluateActiveOriginTrial - checks without live OT API match', () => {
-  const activeStableMilestone = 120;
-  const emptyIds = new Set<number>();
-  const emptyNames = new Set<string>();
-
-  // Case 1: Legacy completed trial (end milestone < activeStableMilestone)
-  const feature1 = {
-    id: 1,
-    stages: [
-      { stage_type: 150, desktop_first: 100, desktop_last: 115 }
-    ]
+test('resolveGatedBy', () => {
+  const feed: OriginTrialContext = {
+    activeStableMilestone: 120,
+    otApiActiveFeatureIds: new Set([101]),
+    otApiActiveTrialNames: new Set(['ActiveTrialName']),
   };
-  assert.equal(evaluateActiveOriginTrial(feature1, activeStableMilestone, emptyIds, emptyNames), false);
+  const noFeed: OriginTrialContext = { ...feed, otApiActiveFeatureIds: new Set(), otApiActiveTrialNames: new Set() };
+  const otStage = (desktop_first: number, desktop_last: number | null) => ({ stage_type: 150 as const, desktop_first, desktop_last });
 
-  // Case 2: Active trial (end milestone >= activeStableMilestone)
-  const feature2 = {
-    id: 2,
-    stages: [
-      { stage_type: 150, desktop_first: 100, desktop_last: 125 }
-    ]
+  const cases = {
+    feedListsFeatureId: resolveGatedBy({ id: 101 }, feed, undefined),
+    feedListsTrialName: resolveGatedBy({ id: 102, stages: [{ stage_type: 150, ot_chromium_trial_name: 'ActiveTrialName' }] }, feed, undefined),
+    feedOverridesHeuristic: resolveGatedBy({ id: 103, stages: [otStage(100, 125)] }, feed, undefined),
+    heuristicEndedTrial: resolveGatedBy({ id: 1, stages: [otStage(100, 115)] }, noFeed, undefined),
+    heuristicRunningTrial: resolveGatedBy({ id: 2, stages: [otStage(100, 125)] }, noFeed, undefined),
+    heuristicFutureTrial: resolveGatedBy({ id: 3, stages: [otStage(125, 130)] }, noFeed, undefined),
+    heuristicShipped: resolveGatedBy({ id: 4, stages: [otStage(100, 125)], browsers: { chrome: { status: { text: 'Enabled by default' } } } }, noFeed, undefined),
+    oldBaselineTrial: resolveGatedBy({ id: 101 }, feed, 2015),
+    flag: resolveGatedBy({ id: 5, browsers: { chrome: { flag: true } } }, feed, undefined),
+    flagStatusText: resolveGatedBy({ id: 6, browsers: { chrome: { status: { text: 'In developer trial (Behind a flag)' } } } }, feed, 2024),
+    flagShipped: resolveGatedBy({ id: 7, browsers: { chrome: { flag: true, status: { text: 'Shipped' } } } }, feed, undefined),
+    flagOldBaseline: resolveGatedBy({ id: 8, browsers: { chrome: { flag: true } } }, feed, 2023),
+    both: resolveGatedBy({ id: 101, browsers: { chrome: { flag: true } } }, feed, undefined),
   };
-  assert.equal(evaluateActiveOriginTrial(feature2, activeStableMilestone, emptyIds, emptyNames), true);
-
-  // Case 3: Shipped feature (should be bypassed)
-  const feature3 = {
-    id: 3,
-    is_released: true,
-    stages: [
-      { stage_type: 150, desktop_first: 100, desktop_last: 125 }
-    ]
-  };
-  assert.equal(evaluateActiveOriginTrial(feature3, activeStableMilestone, emptyIds, emptyNames), false);
-});
-
-test('evaluateActiveOriginTrial - baseline year exclusion bounds', () => {
-  const activeStableMilestone = 120;
-  const emptyIds = new Set<number>();
-  const emptyNames = new Set<string>();
-
-  // Case 1: Active trial name match, but maps to baseline year < 2024 (e.g. 2020)
-  const feature1 = {
-    id: 1,
-    name: 'HTML-in-canvas', // Overridden to canvas-html, baseline year is 2015/legacy
-    web_feature: 'canvas',
-    stages: [
-      { stage_type: 150, desktop_first: 100, desktop_last: 125 }
-    ]
-  };
-
-  const mockBaselineResolver = (webFeatureId: string) => {
-    if (webFeatureId === 'canvas-html' || webFeatureId === 'canvas') return 2015;
-    return undefined;
-  };
-
-  assert.equal(evaluateActiveOriginTrial(feature1, activeStableMilestone, emptyIds, emptyNames, mockBaselineResolver), false);
-});
-
-test('evaluateBehindFlag', () => {
-  // Case 1: Gated behind flag
-  const feature1 = {
-    id: 1,
-    browsers: { chrome: { flag: true } }
-  };
-  assert.equal(evaluateBehindFlag(feature1), true);
-
-  // Case 2: Gated behind flag but already shipped
-  const feature2 = {
-    id: 2,
-    is_released: true,
-    browsers: { chrome: { flag: true, status: { text: 'Shipped' } } }
-  };
-  assert.equal(evaluateBehindFlag(feature2), false);
+  assert.deepEqual(cases, {
+    feedListsFeatureId: ['Origin Trial'],
+    feedListsTrialName: ['Origin Trial'],
+    feedOverridesHeuristic: [],
+    heuristicEndedTrial: [],
+    heuristicRunningTrial: ['Origin Trial'],
+    heuristicFutureTrial: [],
+    heuristicShipped: [],
+    oldBaselineTrial: [],
+    flag: ['Flag'],
+    flagStatusText: ['Flag'],
+    flagShipped: [],
+    flagOldBaseline: [],
+    both: ['Origin Trial', 'Flag'],
+  });
 });
 
 test('disambiguateFeatureNames', () => {
-  const features: any[] = [
-    { id: 1, name: 'WebGPU' },
-    { id: 2, name: 'WebGPU' },
-    { id: 3, name: 'WebGPU' },
-    { id: 4, name: 'WebGL' }
-  ];
-
+  const features = [{ name: 'WebGPU' }, { name: 'WebGPU ' }, { name: 'webgpu' }, { name: 'WebGL' }];
   disambiguateFeatureNames(features);
-
-  assert.equal(features[0].name, 'WebGPU');
-  assert.equal(features[1].name, 'WebGPU (Phase 2)');
-  assert.equal(features[2].name, 'WebGPU (Phase 3)');
-  assert.equal(features[3].name, 'WebGL');
-});
-
-test('assignWebFeaturesAndBaselineYears', () => {
-  const features: any[] = [
-    { id: 1, name: 'HTML-in-canvas', web_feature: 'canvas' }, // Name override -> canvas-html
-    { id: 2, name: 'Feature A', web_feature: '  feature-a, feature-b  ' },
-    { id: 3, name: 'Feature B', web_feature: 'Missing feature' }
-  ];
-
-  const mockBaselineResolver = (webFeatureId: string) => {
-    if (webFeatureId === 'canvas-html') return 2026;
-    if (webFeatureId === 'feature-a') return 2024;
-    if (webFeatureId === 'feature-b') return 2025;
-    return undefined;
-  };
-
-  const webFeatureMap = assignWebFeaturesAndBaselineYears(features, mockBaselineResolver);
-
-  // Assert mapping values
-  assert.equal(webFeatureMap.get(1), 'canvas-html');
-  assert.equal(features[0].web_feature, 'canvas-html');
-  assert.equal(features[0].baseline_year, 2026);
-
-  assert.equal(webFeatureMap.get(2), 'feature-a, feature-b');
-  assert.equal(features[1].baseline_year, 2025); // Max baseline year between 2024 and 2025
-
-  assert.equal(webFeatureMap.has(3), false);
-  assert.equal(features[2].web_feature, undefined);
-  assert.equal(features[2].baseline_year, undefined);
+  assert.deepEqual(features.map(f => f.name), ['WebGPU', 'WebGPU (Phase 2)', 'webgpu (Phase 3)', 'WebGL']);
 });

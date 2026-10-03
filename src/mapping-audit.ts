@@ -1,4 +1,7 @@
-import { parseWebFeatureValue, type UpstreamMappings } from './upstream-mappings.ts';
+import type { UpstreamMappings } from './upstream-mappings.ts';
+import { parseWebFeatureValue, resolveMovedWebFeatureId, type WebFeaturesCatalog } from './compile-helpers.ts';
+
+export type { WebFeaturesCatalog };
 
 /**
  * Audits local overrides and ChromeStatus `web_feature` values against web-features and
@@ -13,14 +16,6 @@ export interface RawFeatureLike {
   bug_url?: string | null;
   doc_links?: string[] | null;
 }
-
-/** Minimal shape of a web-features catalog entry. */
-export interface WebFeatureEntryLike {
-  kind: string;
-  redirect_target?: string;
-  redirect_targets?: string[];
-}
-export type WebFeaturesCatalog = Readonly<Record<string, WebFeatureEntryLike>>;
 
 export type OverrideStatus =
   | 'redundant' // ChromeStatus already has exactly the override's IDs
@@ -53,11 +48,6 @@ function describeId(id: string, catalog: WebFeaturesCatalog): string | null {
 
 function isCurrentFeature(id: string, catalog: WebFeaturesCatalog): boolean {
   return Object.hasOwn(catalog, id) && catalog[id].kind === 'feature';
-}
-
-function resolveMoved(id: string, catalog: WebFeaturesCatalog): string {
-  const entry = Object.hasOwn(catalog, id) ? catalog[id] : undefined;
-  return entry?.kind === 'moved' && entry.redirect_target ? entry.redirect_target : id;
 }
 
 function sameSet(a: string[], b: string[]): boolean {
@@ -111,7 +101,7 @@ export function auditOverrides(
     }
 
     let status: OverrideStatus;
-    const effectiveIds = [...new Set(chromeStatusIds.map(id => resolveMoved(id, catalog)))];
+    const effectiveIds = [...new Set(chromeStatusIds.map(id => resolveMovedWebFeatureId(id, catalog)))];
     if (!feature) status = 'unknown-name';
     else if (!overrideIds.every(id => isCurrentFeature(id, catalog))) status = 'broken';
     else if (sameSet(overrideIds, effectiveIds)) status = 'redundant';

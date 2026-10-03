@@ -1,273 +1,163 @@
 import { features as defaultWebFeatures } from 'web-features';
 import { CUSTOM_WEB_FEATURE_OVERRIDES } from './overrides.ts';
+import type { GatedBy, Stage } from './types.ts';
 
-/**
- * Extracts the baseline implementation year for a given web feature ID.
- */
-export function resolveWebFeatureBaselineYear(webFeatureId: string, webFeaturesCatalog: any = defaultWebFeatures): number | undefined {
-  const webData: any = Object.hasOwn(webFeaturesCatalog, webFeatureId) ? webFeaturesCatalog[webFeatureId] : undefined;
-  if (!webData) return undefined;
+/** Minimal web-features catalog entry shape used for resolution. */
+export interface WebFeatureEntryLike {
+  kind: string;
+  redirect_target?: string;
+  redirect_targets?: string[];
+  status?: { baseline_low_date?: string; support?: Record<string, string> };
+}
+export type WebFeaturesCatalog = Readonly<Record<string, WebFeatureEntryLike>>;
 
-  let targetData = webData;
-  if (webData.kind === 'moved' && typeof webData.redirect_target === 'string') {
-    targetData = Object.hasOwn(webFeaturesCatalog, webData.redirect_target) ? webFeaturesCatalog[webData.redirect_target] : undefined;
-  }
+const DEFAULT_CATALOG = defaultWebFeatures as WebFeaturesCatalog;
 
-  if (targetData?.status?.baseline_low_date && typeof targetData.status.baseline_low_date === 'string') {
-    const yearStr = targetData.status.baseline_low_date.split('-')[0];
-    const y = parseInt(yearStr, 10);
-    if (!isNaN(y)) return y;
-  }
-  return undefined;
+/** Features that reached Baseline before this year are considered shipped, so a stale gate on them is ignored. */
+const GATING_BASELINE_CUTOFF_YEAR = 2024;
+
+/** Splits a raw ChromeStatus `web_feature` value into IDs, dropping sentinel placeholders. */
+export function parseWebFeatureValue(raw: unknown): string[] {
+  if (typeof raw !== 'string') return [];
+  const trimmed = raw.trim();
+  if (!trimmed || trimmed === 'Missing feature' || trimmed.toLowerCase() === 'none') return [];
+  return trimmed.split(',').map(s => s.trim()).filter(Boolean);
+}
+
+function catalogEntry(id: string, catalog: WebFeaturesCatalog): WebFeatureEntryLike | undefined {
+  return Object.hasOwn(catalog, id) ? catalog[id] : undefined;
+}
+
+/** Follows a web-features `moved` redirect; `split` IDs are left alone since the right target is ambiguous. */
+export function resolveMovedWebFeatureId(id: string, catalog: WebFeaturesCatalog = DEFAULT_CATALOG): string {
+  const entry = catalogEntry(id, catalog);
+  return entry?.kind === 'moved' && entry.redirect_target ? entry.redirect_target : id;
 }
 
 /**
- * ==============================================================================
- * CRITICAL FILTERING HEURISTICS: EVALUATING GENUINE ACTIVE ORIGIN TRIALS
- * ==============================================================================
- * Upstream database architecture exhibits specific historical nuances and process gaps:
- * 1. Historical Legacy Persistence: Stage 150 objects are permanently retained inside a feature's
- *    timeline array. Ancient trials launched half a decade ago permanently record `desktop_last: null`
- *    due to database evolution gaps. Naively scanning for Stage 150 without checking overarching release
- *    states sweeps in hundreds of universally supported foundational web standards (e.g., Pointer Events).
- * 2. Overarching Status Precedence: If an overarching record asserts released states ("Shipped",
- *    "Enabled by default", or "Removed"), it definitively supersedes open legacy stage parameters.
- * 3. Future-Scheduled Trials: Experiments mapping `desktop_first` integers targeting future browser releases
- *    hold ending bounds >= stable, but remain hidden from public active dashboard interfaces until launch.
- * 4. Private Evaluations: Confidential partner tests enforce `unlisted: true` and must be safely dropped.
- * 5. Authoritative OT API Synchronization: If Google's active developer API explicitly tracks a feature ID
- *    or trial flag string, it provides mathematical confirmation overriding heuristic ambiguities.
- * ==============================================================================
- *
- * Evaluates whether a feature is genuinely active in Chrome's Origin Trials.
+ * The mapping for one ChromeStatus feature: its override if one exists, otherwise its `web_feature` value,
+ * with placeholders dropped, IDs lowercased, and moved IDs rewritten to their current ID.
  */
-export function evaluateActiveOriginTrial(
-  f: any,
-  activeStableMilestone: number,
-  otApiActiveFeatureIds: Set<number>,
-  otApiActiveTrialNames: Set<string>,
+export function resolveWebFeatureIds(
+  feature: { name: string; web_feature?: string | null },
+  catalog: WebFeaturesCatalog = DEFAULT_CATALOG
+): string[] {
+  const name = feature.name.trim();
+  const raw = Object.hasOwn(CUSTOM_WEB_FEATURE_OVERRIDES, name) ? CUSTOM_WEB_FEATURE_OVERRIDES[name] : feature.web_feature;
+  return [...new Set(parseWebFeatureValue(raw).map(id => resolveMovedWebFeatureId(id.toLowerCase(), catalog)))];
+}
+
+/** Year a web feature became Baseline (newly available), following moved redirects. */
+export function resolveWebFeatureBaselineYear(webFeatureId: string, catalog: WebFeaturesCatalog = DEFAULT_CATALOG): number | undefined {
+  const date = catalogEntry(resolveMovedWebFeatureId(webFeatureId, catalog), catalog)?.status?.baseline_low_date;
+  if (typeof date !== 'string') return undefined;
+  const year = parseInt(date.split('-')[0], 10);
+  return Number.isNaN(year) ? undefined : year;
+}
+
+/** Latest Baseline year across a feature's web feature IDs. */
+export function resolveBaselineYear(
+  webFeatureIds: ReadonlyArray<string>,
   baselineYearResolver: (webFeatureId: string) => number | undefined = resolveWebFeatureBaselineYear
-): boolean {
-  let isGenuinelyActive = false;
-  const statusText = typeof f.browsers?.chrome?.status?.text === 'string' ? f.browsers.chrome.status.text.toLowerCase() : '';
-  const intentStage = typeof f.intent_stage === 'string' ? f.intent_stage.toLowerCase() : '';
+): number | undefined {
+  const years = webFeatureIds.map(id => baselineYearResolver(id)).filter((y): y is number => y !== undefined);
+  return years.length ? Math.max(...years) : undefined;
+}
 
-  // Check 1: Absolute alignment verification against live Google OT API mappings
-  if (otApiActiveFeatureIds.has(f.id)) {
-    isGenuinelyActive = true;
-  } else if (f.stages && Array.isArray(f.stages)) {
-    for (const s of f.stages) {
-      if (s && s.stage_type === 150 && typeof s.ot_chromium_trial_name === 'string' && otApiActiveTrialNames.has(s.ot_chromium_trial_name)) {
-        isGenuinelyActive = true;
-        break;
-      }
-    }
-  }
+/** Raw verbose ChromeStatus feature fields that gating reads. */
+export interface GatingInput {
+  id: number;
+  is_released?: boolean;
+  unlisted?: boolean;
+  intent_stage?: string;
+  browsers?: { chrome?: { flag?: boolean; origintrial?: boolean; status?: { text?: string } } };
+  stages?: ReadonlyArray<Partial<Stage>>;
+}
 
-  // Check 2: If absent from OT API feeds, evaluate strict milestone scheduling limits
-  if (!isGenuinelyActive) {
-    const isShippedOrDead = f.is_released === true ||
-                            f.unlisted === true ||
-                            statusText.includes('enabled by default') ||
-                            statusText.includes('shipped') ||
-                            statusText.includes('removed') ||
-                            statusText.includes('no longer pursuing') ||
-                            intentStage.includes('shipped') ||
-                            intentStage.includes('removed');
+export interface OriginTrialContext {
+  activeStableMilestone: number;
+  /** ChromeStatus feature IDs and Chromium trial names currently listed as active by the Origin Trials API. */
+  otApiActiveFeatureIds: ReadonlySet<number>;
+  otApiActiveTrialNames: ReadonlySet<string>;
+}
 
-    if (!isShippedOrDead) {
-      if (f.stages && Array.isArray(f.stages)) {
-        for (const s of f.stages) {
-          if (s && s.stage_type === 150) {
-            const startM = s.desktop_first !== null && s.desktop_first !== undefined ? Number(s.desktop_first) : 0;
-            if (!isNaN(startM) && startM > activeStableMilestone) {
-              continue;
-            }
+function statusText(f: GatingInput): string {
+  return (f.browsers?.chrome?.status?.text ?? '').toLowerCase();
+}
 
-            if (s.desktop_last !== null && s.desktop_last !== undefined) {
-              const endM = Number(s.desktop_last);
-              if (!isNaN(endM) && endM >= activeStableMilestone) {
-                isGenuinelyActive = true;
-                break;
-              }
-            } else {
-              if (statusText.includes('origin trial') || statusText.includes('in development') || f.browsers?.chrome?.origintrial === true) {
-                isGenuinelyActive = true;
-                break;
-              }
-            }
-          }
-        }
-      }
+/** True when ChromeStatus says the feature shipped, was removed, or was abandoned, or the entry is unlisted. */
+function isShippedOrAbandoned(f: GatingInput): boolean {
+  const status = statusText(f);
+  const intent = (f.intent_stage ?? '').toLowerCase();
+  return f.unlisted === true ||
+    ['enabled by default', 'shipped', 'removed', 'no longer pursuing'].some(s => status.includes(s)) ||
+    ['shipped', 'removed'].some(s => intent.includes(s));
+}
 
-      if (!isGenuinelyActive && statusText.includes('origin trial')) {
-        const hasCompletedOt = f.stages?.some((s: any) => {
-          if (s.stage_type === 150 && s.desktop_last !== null && s.desktop_last !== undefined) {
-            const m = Number(s.desktop_last);
-            return !isNaN(m) && m < activeStableMilestone;
-          }
-          return false;
-        });
-        if (!hasCompletedOt) {
-          isGenuinelyActive = true;
-        }
-      }
-    }
-  }
+function isOldBaseline(baselineYear: number | undefined): boolean {
+  return baselineYear !== undefined && baselineYear < GATING_BASELINE_CUTOFF_YEAR;
+}
 
-  // Final validation bound 1: if Google's OT API feeds were actively extracted but omit this feature,
-  // strictly drop speculative fallback marking to lock output alignment natively.
-  if (isGenuinelyActive && (otApiActiveFeatureIds.size > 0 || otApiActiveTrialNames.size > 0)) {
-    if (!otApiActiveFeatureIds.has(f.id)) {
-      const hasTrialStr = f.stages?.some((s: any) => s.stage_type === 150 && typeof s.ot_chromium_trial_name === 'string' && otApiActiveTrialNames.has(s.ot_chromium_trial_name));
-      if (!hasTrialStr) {
-        isGenuinelyActive = false;
-      }
-    }
-  }
+function originTrialStages(f: GatingInput): Partial<Stage>[] {
+  return (f.stages ?? []).filter(s => s.stage_type === 150);
+}
 
-  // Final validation bound 2: Evaluate absolute calendar baseline support year
-  if (isGenuinelyActive && f && typeof f.name === 'string') {
-    const targetWebFeatureId = CUSTOM_WEB_FEATURE_OVERRIDES[f.name.trim()] || (typeof f.web_feature === 'string' ? f.web_feature.trim() : '');
-    if (targetWebFeatureId) {
-      const baselineYear = baselineYearResolver(targetWebFeatureId);
-      if (baselineYear !== undefined && baselineYear < 2024) {
-        isGenuinelyActive = false;
-      }
-    }
-  }
-
-  return isGenuinelyActive;
+function isListedByOtApi(f: GatingInput, ctx: OriginTrialContext): boolean {
+  return ctx.otApiActiveFeatureIds.has(f.id) ||
+    originTrialStages(f).some(s => typeof s.ot_chromium_trial_name === 'string' && ctx.otApiActiveTrialNames.has(s.ot_chromium_trial_name));
 }
 
 /**
- * Evaluates whether a feature is gated behind an active browser flag.
+ * Milestone-window heuristic for when the Origin Trials API feed has no data.
+ * ChromeStatus keeps Origin Trial stages forever and old ones often have `desktop_last: null`, so a stage alone
+ * doesn't mean the trial is running: shipped/removed status wins, future trials (start > stable) don't count yet,
+ * and an open-ended stage counts only while the feature still reads as in development or in trial.
  */
-export function evaluateBehindFlag(
-  f: any,
-  baselineYearResolver: (webFeatureId: string) => number | undefined = resolveWebFeatureBaselineYear
-): boolean {
-  let isBehindFlag = false;
-  const statusText = typeof f.browsers?.chrome?.status?.text === 'string' ? f.browsers.chrome.status.text.toLowerCase() : '';
-  const intentStage = typeof f.intent_stage === 'string' ? f.intent_stage.toLowerCase() : '';
-
-  if (f.browsers?.chrome?.flag === true || statusText.includes('behind a flag')) {
-    isBehindFlag = true;
-  }
-
-  // Validate flag list: explicitly drop universally shipped or legacy baseline standard features
-  if (isBehindFlag) {
-    const isShippedOrDead = f.unlisted === true ||
-                            statusText.includes('enabled by default') ||
-                            statusText.includes('shipped') ||
-                            statusText.includes('removed') ||
-                            statusText.includes('no longer pursuing') ||
-                            intentStage.includes('shipped') ||
-                            intentStage.includes('removed');
-
-    if (isShippedOrDead) {
-      isBehindFlag = false;
-    } else if (f && typeof f.name === 'string') {
-      const targetWebFeatureId = CUSTOM_WEB_FEATURE_OVERRIDES[f.name.trim()] || (typeof f.web_feature === 'string' ? f.web_feature.trim() : '');
-      if (targetWebFeatureId) {
-        const baselineYear = baselineYearResolver(targetWebFeatureId);
-        if (baselineYear !== undefined && baselineYear < 2024) {
-          isBehindFlag = false;
-        }
-      }
-    }
-  }
-
-  return isBehindFlag;
+function looksLikeActiveTrial(f: GatingInput, stableMilestone: number): boolean {
+  if (f.is_released === true || isShippedOrAbandoned(f)) return false;
+  const status = statusText(f);
+  const stages = originTrialStages(f);
+  const inWindow = stages.some(s => {
+    if ((s.desktop_first ?? 0) > stableMilestone) return false;
+    if (s.desktop_last != null) return s.desktop_last >= stableMilestone;
+    return status.includes('origin trial') || status.includes('in development') || f.browsers?.chrome?.origintrial === true;
+  });
+  if (inWindow) return true;
+  const hasEndedTrial = stages.some(s => s.desktop_last != null && s.desktop_last < stableMilestone);
+  return status.includes('origin trial') && !hasEndedTrial;
 }
 
 /**
- * Appends semantic phase suffixes to resolve duplicate feature names.
+ * Whether a feature is in an Active Origin Trial. The Origin Trials API feed is authoritative when it has data;
+ * the milestone heuristic is used only when the feed is empty. Features that reached Baseline before 2024 are excluded.
  */
-export function disambiguateFeatureNames(features: any[]): void {
+export function evaluateActiveOriginTrial(f: GatingInput, ctx: OriginTrialContext, baselineYear: number | undefined): boolean {
+  if (isOldBaseline(baselineYear)) return false;
+  const feedHasData = ctx.otApiActiveFeatureIds.size > 0 || ctx.otApiActiveTrialNames.size > 0;
+  return feedHasData ? isListedByOtApi(f, ctx) : looksLikeActiveTrial(f, ctx.activeStableMilestone);
+}
+
+/** Whether a feature is behind a flag and not yet shipped. Features that reached Baseline before 2024 are excluded. */
+export function evaluateBehindFlag(f: GatingInput, baselineYear: number | undefined): boolean {
+  const flagged = f.browsers?.chrome?.flag === true || statusText(f).includes('behind a flag');
+  return flagged && !isShippedOrAbandoned(f) && !isOldBaseline(baselineYear);
+}
+
+export function resolveGatedBy(f: GatingInput, ctx: OriginTrialContext, baselineYear: number | undefined): GatedBy[] {
+  const gatedBy: GatedBy[] = [];
+  if (evaluateActiveOriginTrial(f, ctx, baselineYear)) gatedBy.push('Origin Trial');
+  if (evaluateBehindFlag(f, baselineYear)) gatedBy.push('Flag');
+  return gatedBy;
+}
+
+/** Appends ` (Phase N)` to repeated feature names so names stay unique lookup keys. */
+export function disambiguateFeatureNames(features: { name: string }[]): void {
   const seenNames = new Set<string>();
   for (const f of features) {
-    if (f && typeof f.name === 'string') {
-      let cleanName = f.name.trim();
-      const baseName = cleanName;
-      let counter = 2;
-      while (seenNames.has(cleanName.toLowerCase())) {
-        cleanName = `${baseName} (Phase ${counter})`;
-        counter++;
-      }
-      seenNames.add(cleanName.toLowerCase());
-      f.name = cleanName;
-    }
+    const baseName = f.name.trim();
+    let name = baseName;
+    for (let n = 2; seenNames.has(name.toLowerCase()); n++) name = `${baseName} (Phase ${n})`;
+    seenNames.add(name.toLowerCase());
+    f.name = name;
   }
-}
-
-/**
- * Rewrites IDs that web-features marks as `moved` to their redirect target.
- * Returns the input unchanged when nothing moved; `split` IDs are left alone since the right target is ambiguous.
- */
-export function resolveMovedWebFeatureIds(value: string, webFeaturesCatalog: any = defaultWebFeatures): string {
-  const ids = value.split(',').map(s => s.trim()).filter(Boolean);
-  let changed = false;
-  const resolved = ids.map(id => {
-    const entry = Object.hasOwn(webFeaturesCatalog, id) ? webFeaturesCatalog[id] : undefined;
-    if (entry?.kind === 'moved' && typeof entry.redirect_target === 'string') {
-      changed = true;
-      return entry.redirect_target;
-    }
-    return id;
-  });
-  return changed ? [...new Set(resolved)].join(',') : value;
-}
-
-/**
- * Maps web feature IDs and resolves max baseline support years.
- */
-export function assignWebFeaturesAndBaselineYears(
-  features: any[],
-  baselineYearResolver: (webFeatureId: string) => number | undefined = resolveWebFeatureBaselineYear,
-  webFeaturesCatalog: any = defaultWebFeatures
-): Map<number, string> {
-  const webFeatureMap = new Map<number, string>();
-  for (const f of features) {
-    if (f && typeof f.name === 'string') {
-      const overrideId = CUSTOM_WEB_FEATURE_OVERRIDES[f.name.trim()];
-      if (overrideId) {
-        f.web_feature = overrideId;
-        webFeatureMap.set(f.id, overrideId);
-      } else if (f.web_feature && typeof f.web_feature === 'string') {
-        const cleanId = f.web_feature.trim();
-        if (cleanId !== '' && cleanId !== 'Missing feature' && cleanId.toLowerCase() !== 'none') {
-          const currentId = resolveMovedWebFeatureIds(cleanId, webFeaturesCatalog);
-          f.web_feature = currentId;
-          webFeatureMap.set(f.id, currentId);
-        } else {
-          delete f.web_feature;
-        }
-      } else {
-        delete f.web_feature;
-      }
-
-      const webFeatureStr = f.web_feature;
-      if (webFeatureStr) {
-        const ids = webFeatureStr.split(',').map((s: string) => s.trim()).filter(Boolean);
-        let maxYear: number | undefined = undefined;
-        for (const id of ids) {
-          const year = baselineYearResolver(id);
-          if (year !== undefined) {
-            if (maxYear === undefined || year > maxYear) {
-              maxYear = year;
-            }
-          }
-        }
-        if (maxYear !== undefined) {
-          f.baseline_year = maxYear;
-        } else {
-          delete f.baseline_year;
-        }
-      } else {
-        delete f.baseline_year;
-      }
-    }
-  }
-  return webFeatureMap;
 }

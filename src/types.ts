@@ -78,7 +78,7 @@ export interface BrowserSignals {
   ff: { view: BrowserView };
   safari: { view: BrowserView };
   webdev: { view: BrowserView };
-  other: { view: BrowserView };
+  other: { view: { notes: string | null } };
 }
 
 export interface StandardsStatus {
@@ -90,65 +90,65 @@ export interface StandardsStatus {
   };
 }
 
-/**
- * Base basic feature model shipped synchronously in default client bundle.
- */
-export interface ChromeStatusFeatureBasic {
+export type GatedBy = 'Origin Trial' | 'Flag';
+
+/** Fields added at compile time to every basic and verbose feature. */
+export interface CompiledFeatureFields {
+  /** Override if one exists, otherwise the ChromeStatus `web_feature` value: split, lowercased, moved IDs resolved. Empty when unmapped. */
+  web_feature_ids: string[];
+  /** Latest Baseline (newly available) year across `web_feature_ids`. */
+  baseline_year?: number;
+  gated_by: GatedBy[];
+}
+
+/** Fields shared by the raw basic and verbose ChromeStatus payloads. */
+interface ChromeStatusFeatureCommon {
   id: number;
   name: string;
   summary: string;
-  category: string;
-  category_int?: number;
-  web_feature?: string | null;
-  baseline_year?: number;
-  blink_components: string[];
-  star_count: number;
-  is_released: boolean;
-  browsers: {
-    chrome: {
-      origintrial: boolean;
-      flag: boolean;
-      status: { text: string; val: number };
-      owners: string[];
-    };
-  };
-  standards: {
-    maturity: { short_text: string; val: number };
-  };
-  /** Resolved stage metadata summaries for core synchronous filtering */
-  stage_types: StageType[];
-}
-
-/**
- * Complete verbose feature model containing all granular properties and stages.
- */
-export interface ChromeStatusFeatureVerbose extends ChromeStatusFeatureBasic {
-  stages: Stage[];
-  markdown_fields: string[];
-  created: { by: string; when: string };
-  updated: { by: string; when: string };
-  browsers: BrowserSignals;
-  standards: StandardsStatus;
-  feature_notes: string | null;
-  web_feature: string | null;
-  is_official_web_feature: boolean | null;
+  feature_type_int: number;
+  unlisted: boolean;
   enterprise_impact: number;
+  enterprise_product_category: number;
   breaking_change: boolean;
   confidential: boolean;
-  shipping_year: number | null;
-  resources: {
-    samples: string[];
-    docs: string[];
-  };
+  first_enterprise_notification_milestone: number | null;
+  blink_components: string[];
+  resources: { samples: string[]; docs: string[] };
+  creator: string;
+  editors: string[];
+  created: { by: string; when: string };
+  updated: { by: string; when: string };
+  accurate_as_of: string | null;
+  standards: StandardsStatus;
+  browsers: BrowserSignals;
+  is_released: boolean;
 }
 
-export type GatedBy = 'Origin Trial' | 'Flag';
+/** One entry of `data/basic.json`: the ChromeStatus basic payload plus compiled fields. */
+export interface ChromeStatusFeatureBasic extends ChromeStatusFeatureCommon, CompiledFeatureFields {
+  owners: string[];
+  milestone: number | null;
+  first_of_section: boolean;
+}
 
-export interface GatedFeature {
-  name: string;
-  gatedBy: GatedBy[];
-  webFeatureId?: string;
-  baselineYear?: number;
+/** One `data/features/<id>.json` file: the ChromeStatus verbose payload plus compiled fields. Lists the fields this package reads. */
+export interface ChromeStatusFeatureVerbose extends ChromeStatusFeatureCommon, CompiledFeatureFields {
+  stages: Stage[];
+  markdown_fields: string[];
+  category: string;
+  category_int: number;
+  star_count: number;
+  feature_notes: string | null;
+  /** Raw ChromeStatus value; prefer `web_feature_ids`. */
+  web_feature: string | null;
+  is_official_web_feature: boolean | null;
+  intent_stage: string;
+  shipping_year: number | null;
+  bug_url: string | null;
+  spec_link: string | null;
+  doc_links: string[];
+  owner_emails: string[];
 }
 
 /**
@@ -165,15 +165,3 @@ export interface WebFeatureExtras {
   mdnDocs?: ReadonlyArray<{ title: string; url: string }>;
   developerSignals?: { url: string; votes: number };
 }
-
-/** Query builder field inputs */
-export interface FeatureQueryFields {
-  stageType?: StageType;
-  category?: string;
-  isOriginTrial?: boolean;
-  owner?: string;
-  milestone?: number;
-  component?: string;
-}
-
-export type FeaturePredicate = (feature: ChromeStatusFeatureBasic) => boolean;

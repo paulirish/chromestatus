@@ -83,13 +83,8 @@ export class ConformanceAuditor {
       // Check if the feature is shipped/enabled on desktop
       const csMilestone = data.browsers?.chrome?.desktop;
       if (csMilestone && typeof csMilestone === 'number' && csMilestone > 108) {
-        const webFeatureId = data.web_feature?.trim();
-        
-        if (webFeatureId && webFeatureId !== 'Missing feature' && webFeatureId !== '') {
-          let wfFeature = (webFeatures as any)[webFeatureId];
-          if (wfFeature && wfFeature.kind === 'moved' && typeof wfFeature.redirect_target === 'string') {
-            wfFeature = (webFeatures as any)[wfFeature.redirect_target];
-          }
+        for (const webFeatureId of data.web_feature_ids) {
+          const wfFeature = (webFeatures as any)[webFeatureId];
           
           if (wfFeature && wfFeature.kind === 'feature') {
             const wfChromeSupport = wfFeature.status?.support?.chrome;

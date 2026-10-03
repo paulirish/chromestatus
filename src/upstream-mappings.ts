@@ -55,14 +55,6 @@ export async function loadUpstreamMappings(dir: URL = DEFAULT_MAPPINGS_DIR): Pro
   return Object.freeze({ chromeStatus, bugs, mdnDocs, useCounters, standardsPositions, wpt, interop, developerSignals });
 }
 
-/** Splits a raw ChromeStatus `web_feature` value into IDs, dropping sentinel placeholders. */
-export function parseWebFeatureValue(raw: unknown): string[] {
-  if (typeof raw !== 'string') return [];
-  const trimmed = raw.trim();
-  if (!trimmed || trimmed === 'Missing feature' || trimmed.toLowerCase() === 'none') return [];
-  return trimmed.split(',').map(s => s.trim()).filter(Boolean);
-}
-
 /** Collects upstream extras for the given web-features IDs, keyed by ID. IDs without any upstream data are omitted. */
 export function buildWebFeatureExtras(ids: Iterable<string>, upstream: UpstreamMappings): Record<string, WebFeatureExtras> {
   const out: Record<string, WebFeatureExtras> = {};

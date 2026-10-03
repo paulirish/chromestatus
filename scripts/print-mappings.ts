@@ -1,61 +1,17 @@
-import fs from 'node:fs/promises';
-import path from 'node:path';
 import { features as webFeatures } from 'web-features';
-import type { ChromeStatusFeatureBasic } from '../src/types.ts';
+import { ChromeStatusClient } from '../src/index.ts';
 
-async function main() {
-  const basicPath = path.resolve(process.cwd(), 'data', 'basic.json');
-  let features: ChromeStatusFeatureBasic[] = [];
-  
-  try {
-    const text = await fs.readFile(basicPath, 'utf8');
-    features = JSON.parse(text);
-  } catch {
-    console.error('Error: Compiled snapshot data/basic.json not found. Please run `pnpm run fetch` first.');
-    process.exit(1);
-  }
+/** Prints a markdown table of every web feature ID → ChromeStatus feature mapping, sorted by web feature ID. */
+const client = await ChromeStatusClient.create();
+const escape = (s: string) => s.replace(/\|/g, '\\|').replace(/\n/g, ' ');
 
-  const legitimateFeatures = features.filter(f => 
-    f.web_feature && 
-    typeof f.web_feature === 'string' && 
-    f.web_feature !== 'Missing feature' && 
-    f.web_feature.trim() !== ''
-  );
+const rows = client.features
+  .flatMap(f => f.web_feature_ids.map(webFeatureId => ({ webFeatureId, feature: f })))
+  .sort((a, b) => a.webFeatureId.localeCompare(b.webFeatureId));
 
-  const rows: {
-    webFeatureId: string;
-    webName: string;
-    chromeId: number;
-    chromeName: string;
-  }[] = [];
-
-  for (const feature of legitimateFeatures) {
-    const webFeatureId = feature.web_feature!;
-    const matchedWeb = Object.hasOwn(webFeatures, webFeatureId) 
-      ? webFeatures[webFeatureId] 
-      : undefined;
-
-    rows.push({
-      webFeatureId,
-      webName: matchedWeb?.name ?? '⚠️ (Unmatched in web-features)',
-      chromeId: feature.id,
-      chromeName: feature.name
-    });
-  }
-
-  rows.sort((a, b) => a.webFeatureId.localeCompare(b.webFeatureId));
-
-  console.log('| Web Feature ID | Web Feature Name | Chrome Feature Name |');
-  console.log('| :--- | :--- | :--- |');
-
-  for (const r of rows) {
-    const safeWebName = r.webName.replace(/\|/g, '\\|').replace(/\n/g, ' ');
-    const safeChromeName = r.chromeName.replace(/\|/g, '\\|').replace(/\n/g, ' ');
-    console.log(`| \`${r.webFeatureId}\` | ${safeWebName} | [${safeChromeName}](https://chromestatus.com/feature/${r.chromeId}) |`);
-  }
+console.log('| Web Feature ID | Web Feature Name | Chrome Feature Name |');
+console.log('| :--- | :--- | :--- |');
+for (const { webFeatureId, feature } of rows) {
+  const webName = Object.hasOwn(webFeatures, webFeatureId) ? webFeatures[webFeatureId].name ?? webFeatureId : '⚠️ (not in web-features)';
+  console.log(`| \`${webFeatureId}\` | ${escape(webName)} | [${escape(feature.name)}](https://chromestatus.com/feature/${feature.id}) |`);
 }
-
-main().catch(err => {
-  console.error(err);
-  process.exit(1);
-});
