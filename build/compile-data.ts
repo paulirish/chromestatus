@@ -36,7 +36,7 @@ async function main() {
   const seenIds = new Set<number>();
   const uniqueVerbose: any[] = [];
   const activeOtIds: number[] = [];
-  const experimentalFlagIds: number[] = [];
+  const flagIds: number[] = [];
 
   // Centralized compile-time overrides are imported from src/overrides.ts
 
@@ -104,13 +104,13 @@ async function main() {
 
       const isBehindFlag = evaluateBehindFlag(f, resolveWebFeatureBaselineYear);
       if (isBehindFlag) {
-        experimentalFlagIds.push(f.id);
+        flagIds.push(f.id);
       }
     }
   }
   uniqueVerbose.sort((a, b) => Number(a.id) - Number(b.id));
   activeOtIds.sort((a, b) => a - b);
-  experimentalFlagIds.sort((a, b) => a - b);
+  flagIds.sort((a, b) => a - b);
 
   // Systematic Title Disambiguation Phase
   disambiguateFeatureNames(uniqueVerbose);
@@ -144,10 +144,10 @@ async function main() {
     JSON.stringify(activeOtIds)
   );
 
-  console.log(`Writing ${experimentalFlagIds.length} Experimental Flag index IDs to data/experimental-flag-index.json...`);
+  console.log(`Writing ${flagIds.length} flag index IDs to data/experimental-flag-index.json...`);
   await fs.writeFile(
     path.join(dataDir, 'experimental-flag-index.json'),
-    JSON.stringify(experimentalFlagIds)
+    JSON.stringify(flagIds)
   );
 
   // Generate active OT mapping JSON

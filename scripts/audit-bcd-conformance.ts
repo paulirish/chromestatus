@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { CollectorResultsIndex } from '../src/collector-results-index.ts';
 import { ConformanceAuditor } from '../src/conformance.ts';
-import type { ChromeStatusFeatureDetailed } from '../src/types.ts';
+import type { ChromeStatusFeatureVerbose } from '../src/types.ts';
 
 const projectRoot = process.cwd();
 
@@ -15,7 +15,7 @@ console.log('Reading ChromeStatus feature cache files...');
 const csFeaturesDir = path.resolve(projectRoot, 'data/features');
 const csFiles = fs.readdirSync(csFeaturesDir).filter(f => f.endsWith('.json'));
 
-const featuresList: ChromeStatusFeatureDetailed[] = [];
+const featuresList: ChromeStatusFeatureVerbose[] = [];
 for (const file of csFiles) {
   const filePath = path.join(csFeaturesDir, file);
   try {

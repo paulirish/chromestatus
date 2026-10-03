@@ -56,8 +56,8 @@ async function run() {
   console.log(`Mapped Web Feature ID: ${feature.web_feature}`);
 
   // Synchronously verify runtime configuration gating states
-  const isOt = client.isFeatureInOriginTrial(feature.id);
-  const isFlagged = client.isFeatureBehindExperimentalFlag(feature.id);
+  const isOt = client.isFeatureInActiveOriginTrial(feature.id);
+  const isFlagged = client.isFeatureBehindFlag(feature.id);
   console.log(`Is in active Origin Trial: ${isOt}`);
   console.log(`Is behind a flag: ${isFlagged}`);
 }
@@ -113,7 +113,7 @@ async function run() {
 
   // Dynamically resolve granular timeline structures (full stages array, custom URLs) over storage boundaries
   // Natively supports passing descriptive feature title strings to abstract numeric database IDs entirely
-  const verboseMetadata = await client.getFeatureDetailed('HTML-in-canvas');
+  const verboseMetadata = await client.getFeatureVerbose('HTML-in-canvas');
   console.log(verboseMetadata?.stages);
 
   // web-features-mappings extras: use counter, standards positions, WPT, interop, MDN docs, developer signals

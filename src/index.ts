@@ -1,5 +1,5 @@
 import fs from 'node:fs/promises';
-import type { ChromeStatusFeatureStub, ChromeStatusFeatureDetailed, WebFeatureExtras } from './types.ts';
+import type { ChromeStatusFeatureBasic, ChromeStatusFeatureVerbose, WebFeatureExtras, GatedFeature } from './types.ts';
 import { CUSTOM_WEB_FEATURE_OVERRIDES } from './overrides.ts';
 import { tokenize } from './text-analyzer.ts';
 
@@ -8,7 +8,7 @@ export * from './types.ts';
 interface SearchIndexRecord {
   id: number;
   webFeatureId?: string; // lowercased and normalized web feature ID
-  stub: Readonly<ChromeStatusFeatureStub>;
+  feature: Readonly<ChromeStatusFeatureBasic>;
   nameTokens?: Set<string>; // updated to Set<string> for unified tokenization
 }
 
@@ -17,38 +17,38 @@ interface SearchIndexRecord {
  * Engineered for absolute O(1) indexing determinism, fail-fast concurrency, lazy heap tokenization, and deep erasable immutability bounds.
  */
 export class ChromeStatusClient {
-  private stubs: ReadonlyArray<ChromeStatusFeatureStub>;
-  private idMap: Map<number, Readonly<ChromeStatusFeatureStub>>;
+  private basicFeatures: ReadonlyArray<ChromeStatusFeatureBasic>;
+  private idMap: Map<number, Readonly<ChromeStatusFeatureBasic>>;
   private searchIndex: SearchIndexRecord[];
-  private originTrialIds: Set<number>;
-  private experimentalFlagIds: Set<number>;
+  private activeOriginTrialIds: Set<number>;
+  private flagIds: Set<number>;
   private webFeatureExtras: Readonly<Record<string, Readonly<WebFeatureExtras>>>;
 
   constructor(
-    stubs: ReadonlyArray<ChromeStatusFeatureStub>, 
+    features: ReadonlyArray<ChromeStatusFeatureBasic>, 
     activeOriginTrialIds: ReadonlyArray<number> = [],
-    experimentalFlagIds: ReadonlyArray<number> = [],
+    flagIds: ReadonlyArray<number> = [],
     webFeatureExtras: Readonly<Record<string, WebFeatureExtras>> = {}
   ) {
     this.webFeatureExtras = Object.freeze({ ...webFeatureExtras });
-    this.stubs = Object.freeze(stubs.map(stub => {
-      let web_feature = stub.web_feature;
-      if (stub.name && Object.hasOwn(CUSTOM_WEB_FEATURE_OVERRIDES, stub.name)) {
-        web_feature = CUSTOM_WEB_FEATURE_OVERRIDES[stub.name];
+    this.basicFeatures = Object.freeze(features.map(feature => {
+      let web_feature = feature.web_feature;
+      if (feature.name && Object.hasOwn(CUSTOM_WEB_FEATURE_OVERRIDES, feature.name)) {
+        web_feature = CUSTOM_WEB_FEATURE_OVERRIDES[feature.name];
       }
-      return Object.freeze({ ...stub, web_feature });
+      return Object.freeze({ ...feature, web_feature });
     }));
-    this.originTrialIds = new Set(activeOriginTrialIds);
-    this.experimentalFlagIds = new Set(experimentalFlagIds);
+    this.activeOriginTrialIds = new Set(activeOriginTrialIds);
+    this.flagIds = new Set(flagIds);
     
     this.idMap = new Map();
     this.searchIndex = [];
 
-    for (const stub of this.stubs) {
-      this.idMap.set(stub.id, stub);
+    for (const feature of this.basicFeatures) {
+      this.idMap.set(feature.id, feature);
       
       // Enforce consistent lowercase normalization while explicitly filtering out sentinel defaults
-      const rawFeatureId = stub.web_feature?.trim();
+      const rawFeatureId = feature.web_feature?.trim();
       const webFeatureIds = rawFeatureId && rawFeatureId !== 'Missing feature' && rawFeatureId.toLowerCase() !== 'none'
         ? rawFeatureId.toLowerCase().split(',').map(s => s.trim()).filter(Boolean)
         : [];
@@ -56,15 +56,15 @@ export class ChromeStatusClient {
       if (webFeatureIds.length > 0) {
         for (const webFeatureId of webFeatureIds) {
           this.searchIndex.push({
-            id: stub.id,
+            id: feature.id,
             webFeatureId,
-            stub
+            feature
           });
         }
       } else {
         this.searchIndex.push({
-          id: stub.id,
-          stub
+          id: feature.id,
+          feature
         });
       }
     }
@@ -88,8 +88,8 @@ export class ChromeStatusClient {
       fs.readFile(extrasUrl, 'utf8')
     ]);
 
-    const parsedStubs: unknown = JSON.parse(liteText);
-    if (!Array.isArray(parsedStubs)) {
+    const parsedFeatures: unknown = JSON.parse(liteText);
+    if (!Array.isArray(parsedFeatures)) {
       throw new Error("Client initialization failed: data/lite.json is malformed.");
     }
 
@@ -107,7 +107,7 @@ export class ChromeStatusClient {
     }
 
     return new ChromeStatusClient(
-      parsedStubs as ReadonlyArray<ChromeStatusFeatureStub>, 
+      parsedFeatures as ReadonlyArray<ChromeStatusFeatureBasic>, 
       parsedOts as ReadonlyArray<number>,
       flagArray as ReadonlyArray<number>,
       parsedExtras as Readonly<Record<string, WebFeatureExtras>>
@@ -117,8 +117,8 @@ export class ChromeStatusClient {
   /**
    * Returns an immutable base catalog view array of feature instances.
    */
-  get features(): ReadonlyArray<ChromeStatusFeatureStub> {
-    return this.stubs;
+  get features(): ReadonlyArray<ChromeStatusFeatureBasic> {
+    return this.basicFeatures;
   }
 
   /**
@@ -134,9 +134,9 @@ export class ChromeStatusClient {
    * Returns extras for every web-features ID mapped to a ChromeStatus feature, keyed by web-features ID.
    */
   getFeatureExtras(query: string | number): Readonly<Record<string, Readonly<WebFeatureExtras>>> {
-    const stub = this.findFeature(query);
+    const feature = this.findFeature(query);
     const out: Record<string, Readonly<WebFeatureExtras>> = {};
-    for (const id of stub?.web_feature?.split(',').map(s => s.trim()).filter(Boolean) ?? []) {
+    for (const id of feature?.web_feature?.split(',').map(s => s.trim()).filter(Boolean) ?? []) {
       const extras = this.getWebFeatureExtras(id);
       if (extras) out[id] = extras;
     }
@@ -146,7 +146,7 @@ export class ChromeStatusClient {
   /**
    * Locates a specific feature cleanly by exact integer ID, web feature ID, or descriptive tokens.
    */
-  findFeature(query: string | number): Readonly<ChromeStatusFeatureStub> | undefined {
+  findFeature(query: string | number): Readonly<ChromeStatusFeatureBasic> | undefined {
     if (typeof query === 'number') {
       return this.idMap.get(query);
     }
@@ -157,16 +157,16 @@ export class ChromeStatusClient {
 
     // 1. Exact web feature ID match prioritization
     const exact = this.searchIndex.find(r => r.webFeatureId === clean);
-    if (exact) return exact.stub;
+    if (exact) return exact.feature;
 
     // 2. Full web feature ID word containment (preventing broad substring hijacking)
     const tokenMatchedId = this.searchIndex.find(r => r.webFeatureId && r.webFeatureId.length >= 3 && queryTokens.has(r.webFeatureId));
-    if (tokenMatchedId) return tokenMatchedId.stub;
+    if (tokenMatchedId) return tokenMatchedId.feature;
 
     // 3. Strict descriptive multi-word token consensus checks evaluated using lazy token caching
     const matched = this.searchIndex.find(r => {
       if (!r.nameTokens) {
-        r.nameTokens = tokenize(r.stub.name);
+        r.nameTokens = tokenize(r.feature.name);
       }
       for (const qt of queryTokens) {
         let hasMatch = false;
@@ -181,7 +181,7 @@ export class ChromeStatusClient {
       return true;
     });
 
-    if (matched) return matched.stub;
+    if (matched) return matched.feature;
 
     return undefined;
   }
@@ -190,25 +190,25 @@ export class ChromeStatusClient {
    * Locates all matching feature records sharing a target web feature ID.
    * Guarantees absolute retrieval correctness for external identifiers mapping to multiple catalog entries.
    */
-  findFeaturesBySymbol(symbol: string): ReadonlyArray<ChromeStatusFeatureStub> {
-    const clean = symbol.trim().toLowerCase();
+  findFeaturesByWebFeatureId(webFeatureId: string): ReadonlyArray<ChromeStatusFeatureBasic> {
+    const clean = webFeatureId.trim().toLowerCase();
     return this.searchIndex
       .filter(r => r.webFeatureId === clean)
-      .map(r => r.stub);
+      .map(r => r.feature);
   }
 
   /**
    * Evaluates whether a specific feature ID is actively configured for an Origin Trial.
    */
-  isFeatureInOriginTrial(id: number): boolean {
-    return this.originTrialIds.has(id);
+  isFeatureInActiveOriginTrial(id: number): boolean {
+    return this.activeOriginTrialIds.has(id);
   }
 
   /**
-   * Evaluates whether a specific feature ID is actively configured behind an Experimental Web Platform features runtime flag.
+   * Evaluates whether a specific feature ID is actively configured behind a runtime flag.
    */
-  isFeatureBehindExperimentalFlag(id: number): boolean {
-    return this.experimentalFlagIds.has(id);
+  isFeatureBehindFlag(id: number): boolean {
+    return this.flagIds.has(id);
   }
 
   /**
@@ -217,7 +217,7 @@ export class ChromeStatusClient {
    */
   getActiveOriginTrialWebFeatureIds(): string[] {
     const results = new Set<string>();
-    for (const id of this.originTrialIds) {
+    for (const id of this.activeOriginTrialIds) {
       const record = this.searchIndex.find(r => r.id === id);
       if (record?.webFeatureId) {
         results.add(record.webFeatureId);
@@ -228,11 +228,11 @@ export class ChromeStatusClient {
 
   /**
    * Extracts a clean, lowercased, deduplicated array of all valid web_feature string identifiers
-   * currently assigned behind an active Experimental Web Platform features runtime flag.
+   * currently assigned behind an active runtime flag.
    */
-  getExperimentalFlagWebFeatureIds(): string[] {
+  getFlagWebFeatureIds(): string[] {
     const results = new Set<string>();
-    for (const id of this.experimentalFlagIds) {
+    for (const id of this.flagIds) {
       const record = this.searchIndex.find(r => r.id === id);
       if (record?.webFeatureId) {
         results.add(record.webFeatureId);
@@ -245,48 +245,43 @@ export class ChromeStatusClient {
    * Returns the complete, un-truncated array of all authentic active Origin Trial feature records.
    * Guarantees zero accounting loss for highly specific experimental capabilities lacking mapped string symbols.
    */
-  getActiveOriginTrials(): ReadonlyArray<ChromeStatusFeatureStub> {
-    const results: ChromeStatusFeatureStub[] = [];
-    for (const id of this.originTrialIds) {
+  getActiveOriginTrials(): ReadonlyArray<ChromeStatusFeatureBasic> {
+    const results: ChromeStatusFeatureBasic[] = [];
+    for (const id of this.activeOriginTrialIds) {
       const record = this.searchIndex.find(r => r.id === id);
       if (record) {
-        results.push(record.stub);
+        results.push(record.feature);
       }
     }
     return results;
   }
 
   /**
-   * Returns the complete, un-truncated array of all feature records actively gated behind runtime experimental flag switches.
+   * Returns the complete, un-truncated array of all feature records actively gated behind runtime flag switches.
    * Guarantees zero accounting loss for unmapped granular platform feature extensions.
    */
-  getExperimentalFlagFeatures(): ReadonlyArray<ChromeStatusFeatureStub> {
-    const results: ChromeStatusFeatureStub[] = [];
-    for (const id of this.experimentalFlagIds) {
+  getFlagFeatures(): ReadonlyArray<ChromeStatusFeatureBasic> {
+    const results: ChromeStatusFeatureBasic[] = [];
+    for (const id of this.flagIds) {
       const record = this.searchIndex.find(r => r.id === id);
       if (record) {
-        results.push(record.stub);
+        results.push(record.feature);
       }
     }
     return results;
   }
 
   /**
-   * Returns a combined inventory of all features gated behind Origin Trials or Experimental Flags,
+   * Returns a combined inventory of all features gated behind Origin Trials or Flags,
    * including validation data (baseline year) if available.
    */
-  getGatedFeaturesInventory(): Array<{
-    name: string;
-    gatedBy: string[];
-    webFeatureId?: string;
-    baselineYear?: number;
-  }> {
-    const otStubs = this.getActiveOriginTrials();
-    const flagStubs = this.getExperimentalFlagFeatures();
+  getGatedFeaturesInventory(): GatedFeature[] {
+    const otFeatures = this.getActiveOriginTrials();
+    const flagFeatures = this.getFlagFeatures();
 
-    const allGated = new Map<string, { name: string, gatedBy: string[], webFeatureId?: string, baselineYear?: number }>();
+    const allGated = new Map<string, GatedFeature>();
 
-    for (const f of otStubs) {
+    for (const f of otFeatures) {
       allGated.set(f.name, { 
         name: f.name, 
         gatedBy: ['Origin Trial'], 
@@ -295,14 +290,14 @@ export class ChromeStatusClient {
       });
     }
 
-    for (const f of flagStubs) {
+    for (const f of flagFeatures) {
       const existing = allGated.get(f.name);
       if (existing) {
-        existing.gatedBy.push('Experimental Flag');
+        existing.gatedBy.push('Flag');
       } else {
         allGated.set(f.name, { 
           name: f.name, 
-          gatedBy: ['Experimental Flag'], 
+          gatedBy: ['Flag'], 
           webFeatureId: f.web_feature || undefined, 
           baselineYear: f.baseline_year 
         });
@@ -316,11 +311,11 @@ export class ChromeStatusClient {
    * Resolves absolute verbose feature metadata over local storage pathways dynamically.
    * Intercepts explicit targeted lookup exceptions cleanly while bubbling operational infrastructure/syntax failures.
    */
-  async getFeatureDetailed(query: string | number): Promise<ChromeStatusFeatureDetailed | undefined> {
+  async getFeatureVerbose(query: string | number): Promise<ChromeStatusFeatureVerbose | undefined> {
     try {
-      const stub = this.findFeature(query);
-      if (!stub) return undefined;
-      const chunkUrl = new URL(`../data/features/${stub.id}.json`, import.meta.url);
+      const feature = this.findFeature(query);
+      if (!feature) return undefined;
+      const chunkUrl = new URL(`../data/features/${feature.id}.json`, import.meta.url);
       const text = await fs.readFile(chunkUrl, 'utf8');
       return JSON.parse(text);
     } catch (err: any) {

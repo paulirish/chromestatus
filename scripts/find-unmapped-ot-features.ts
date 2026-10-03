@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { features as webFeatures } from 'web-features';
-import type { ChromeStatusFeatureDetailed } from '../src/types.ts';
+import type { ChromeStatusFeatureVerbose } from '../src/types.ts';
 import { isSpecMatch, MONOLITHIC_SYMBOLS } from '../src/spec-matcher.ts';
 
 async function main() {
@@ -40,7 +40,7 @@ async function main() {
       continue;
     }
 
-    const feature: ChromeStatusFeatureDetailed = JSON.parse(featureText);
+    const feature: ChromeStatusFeatureVerbose = JSON.parse(featureText);
     
     const currentWebFeature = feature.web_feature;
     const isUnmapped = !currentWebFeature || 

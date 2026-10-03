@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ChromeStatusClient } from '../src/index.ts';
-import type { ChromeStatusFeatureStub } from '../src/types.ts';
+import type { ChromeStatusFeatureBasic } from '../src/types.ts';
 
 test('ChromeStatusClient - Synchronous querying and Origin Trial indexing validation', async () => {
-  const mockStubs: ChromeStatusFeatureStub[] = [
+  const mockFeatures: ChromeStatusFeatureBasic[] = [
     {
       id: 5172548013916160,
       name: 'HTML-in-canvas',
@@ -47,22 +47,22 @@ test('ChromeStatusClient - Synchronous querying and Origin Trial indexing valida
     }
   ];
 
-  const client = new ChromeStatusClient(mockStubs, [5172548013916160, 5117755740913664], [5117755740913664]);
+  const client = new ChromeStatusClient(mockFeatures, [5172548013916160, 5117755740913664], [5117755740913664]);
 
   // 1. Find HTML-in-canvas via exact/embedded web feature ID or fuzzy heuristics
   const canvasFeature = client.findFeature('canvas-html');
   assert.notEqual(canvasFeature, undefined, 'Must resolve target HTML-in-canvas feature record');
   assert.equal(canvasFeature?.name, 'HTML-in-canvas');
   
-  assert.equal(client.isFeatureInOriginTrial(canvasFeature!.id), true);
+  assert.equal(client.isFeatureInActiveOriginTrial(canvasFeature!.id), true);
 
   // 2. Find WebMCP using descriptive name containment forwarders
   const webmcpFeature = client.findFeature('webmcp');
   assert.notEqual(webmcpFeature, undefined, 'Must locate target WebMCP feature instance');
   assert.equal(webmcpFeature?.name, 'WebMCP');
 
-  assert.equal(client.isFeatureInOriginTrial(webmcpFeature!.id), true);
-  assert.equal(client.isFeatureBehindExperimentalFlag(webmcpFeature!.id), true);
+  assert.equal(client.isFeatureInActiveOriginTrial(webmcpFeature!.id), true);
+  assert.equal(client.isFeatureBehindFlag(webmcpFeature!.id), true);
 
   // 3. Verify top-level active Origin Trial web_feature IDs extraction helper
   const activeIds = client.getActiveOriginTrialWebFeatureIds();
@@ -73,11 +73,19 @@ test('ChromeStatusClient - Synchronous querying and Origin Trial indexing valida
   assert.equal(activeFeatures.length, 2, 'getActiveOriginTrials must faithfully return all active feature objects natively');
   assert.equal(activeFeatures[0].name, 'HTML-in-canvas', 'Output collection entry matches authoritative descriptive feature name string');
 
-  // 5. Verify Experimental Flag gating SDK retrieval interfaces
-  const flagWebFeatureIds = client.getExperimentalFlagWebFeatureIds();
-  const flagFeatures = client.getExperimentalFlagFeatures();
-  assert.equal(flagFeatures.length, 1, 'getExperimentalFlagFeatures returns full un-truncated flag objects set natively');
+  // 5. Verify Flag gating SDK retrieval interfaces
+  const flagWebFeatureIds = client.getFlagWebFeatureIds();
+  const flagFeatures = client.getFlagFeatures();
+  assert.equal(flagFeatures.length, 1, 'getFlagFeatures returns full un-truncated flag objects set natively');
   assert.equal(flagFeatures[0].name, 'WebMCP');
+
+  // 6. Verify Gated Features Inventory
+  const inventory = client.getGatedFeaturesInventory();
+  assert.equal(inventory.length, 2);
+  const canvasGated = inventory.find(i => i.name === 'HTML-in-canvas');
+  assert.deepEqual(canvasGated?.gatedBy, ['Origin Trial']);
+  const webmcpGated = inventory.find(i => i.name === 'WebMCP');
+  assert.deepEqual(webmcpGated?.gatedBy, ['Origin Trial', 'Flag']);
 });
 
 test('ChromeStatusClient - Static factory initializer loads snapshot archives dynamically', async () => {
@@ -86,7 +94,7 @@ test('ChromeStatusClient - Static factory initializer loads snapshot archives dy
   if (client.features.length > 0) {
     assert.equal(client.features.length > 3000, true, 'Compiled catalog array size must exceed baseline bounds');
     
-    const verbose = await client.getFeatureDetailed(client.features[0].name);
+    const verbose = await client.getFeatureVerbose(client.features[0].name);
     assert.notEqual(verbose, undefined, 'Must resolve granular verbose feature over local storage paths');
   }
 });
@@ -101,7 +109,7 @@ test('Origin Trial Expiration Filtering - Purges completed historical legacy exp
   
   // Upstream trial stage ended in Chrome 65. Must evaluate as completed/inactive.
   assert.equal(
-    client.isFeatureInOriginTrial(audioWorklet!.id), 
+    client.isFeatureInActiveOriginTrial(audioWorklet!.id), 
     false, 
     'AudioWorklet completed its Origin Trial in milestone 65. Must evaluate as inactive.'
   );
@@ -112,7 +120,7 @@ test('Origin Trial Expiration Filtering - Purges completed historical legacy exp
 
   // Upstream trial stage ended in Chrome 137. Must evaluate as completed/inactive.
   assert.equal(
-    client.isFeatureInOriginTrial(interestInvokers!.id), 
+    client.isFeatureInActiveOriginTrial(interestInvokers!.id), 
     false, 
     'Interest Invokers completed its Origin Trial in milestone 137. Must evaluate as inactive.'
   );
@@ -129,7 +137,7 @@ test('ChromeStatusClient - Static Compilation Overrides Map Integration', async 
 
   // Ensure active Origin Trial extraction helper reflects the overridden key instead of legacy web feature ID
   const activeWebFeatureIds = client.getActiveOriginTrialWebFeatureIds();
-  if (client.isFeatureInOriginTrial(feature!.id)) {
+  if (client.isFeatureInActiveOriginTrial(feature!.id)) {
     assert.equal(activeWebFeatureIds.includes('canvas-html'), true, 'Active OT web feature IDs list must contain corrected key canvas-html');
     assert.equal(activeWebFeatureIds.includes('canvas'), false, 'Active OT web feature IDs list must omit legacy un-overridden web feature ID canvas');
   }

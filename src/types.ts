@@ -93,7 +93,7 @@ export interface StandardsStatus {
 /**
  * Base basic feature model shipped synchronously in default client bundle.
  */
-export interface ChromeStatusFeatureStub {
+export interface ChromeStatusFeatureBasic {
   id: number;
   name: string;
   summary: string;
@@ -122,7 +122,7 @@ export interface ChromeStatusFeatureStub {
 /**
  * Complete verbose feature model containing all granular properties and stages.
  */
-export interface ChromeStatusFeatureDetailed extends ChromeStatusFeatureStub {
+export interface ChromeStatusFeatureVerbose extends ChromeStatusFeatureBasic {
   stages: Stage[];
   markdown_fields: string[];
   created: { by: string; when: string };
@@ -140,6 +140,15 @@ export interface ChromeStatusFeatureDetailed extends ChromeStatusFeatureStub {
     samples: string[];
     docs: string[];
   };
+}
+
+export type GatedBy = 'Origin Trial' | 'Flag';
+
+export interface GatedFeature {
+  name: string;
+  gatedBy: GatedBy[];
+  webFeatureId?: string;
+  baselineYear?: number;
 }
 
 /**
@@ -167,4 +176,4 @@ export interface FeatureQueryFields {
   component?: string;
 }
 
-export type FeaturePredicate = (feature: ChromeStatusFeatureStub) => boolean;
+export type FeaturePredicate = (feature: ChromeStatusFeatureBasic) => boolean;

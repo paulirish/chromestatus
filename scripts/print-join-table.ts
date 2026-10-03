@@ -1,11 +1,11 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { features as webFeatures } from 'web-features';
-import type { ChromeStatusFeatureStub } from '../src/types.ts';
+import type { ChromeStatusFeatureBasic } from '../src/types.ts';
 
 async function main() {
   const litePath = path.resolve(process.cwd(), 'data', 'lite.json');
-  let features: ChromeStatusFeatureStub[] = [];
+  let features: ChromeStatusFeatureBasic[] = [];
   
   try {
     const text = await fs.readFile(litePath, 'utf8');

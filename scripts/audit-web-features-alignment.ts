@@ -1,23 +1,23 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { AlignmentAuditor } from '../src/alignment.ts';
-import type { ChromeStatusFeatureStub } from '../src/types.ts';
+import type { ChromeStatusFeatureBasic } from '../src/types.ts';
 
 async function main() {
   const dataDir = path.resolve(process.cwd(), 'data');
   const litePath = path.join(dataDir, 'lite.json');
   
-  let stubs: ChromeStatusFeatureStub[] = [];
+  let features: ChromeStatusFeatureBasic[] = [];
   try {
     const text = await fs.readFile(litePath, 'utf8');
-    stubs = JSON.parse(text);
+    features = JSON.parse(text);
   } catch {
     console.error('Error: Compiled snapshot data/lite.json not found. Run compilation first.');
     process.exit(1);
   }
 
-  console.log(`Loaded ${stubs.length} basic features. Running web-features alignment audit...`);
-  const report = AlignmentAuditor.run(stubs);
+  console.log(`Loaded ${features.length} basic features. Running web-features alignment audit...`);
+  const report = AlignmentAuditor.run(features);
 
   console.log("==================================================================");
   console.log("   WEB-FEATURES SYSTEMATIC ALIGNMENT AUDIT REPORT");

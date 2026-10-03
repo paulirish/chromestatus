@@ -1,4 +1,4 @@
-import type { ChromeStatusFeatureDetailed } from './types.ts';
+import type { ChromeStatusFeatureVerbose } from './types.ts';
 import { CollectorResultsIndex } from './collector-results-index.ts';
 import { tokenize } from './text-analyzer.ts';
 import { features as webFeatures } from 'web-features';
@@ -70,7 +70,7 @@ export class ConformanceAuditor {
     this.collectorIndex = collectorIndex;
   }
 
-  audit(featuresList: ChromeStatusFeatureDetailed[]): ConformanceAuditResult {
+  audit(featuresList: ChromeStatusFeatureVerbose[]): ConformanceAuditResult {
     const conformant: ConformanceRecord[] = [];
     const bcdLagging: ConformanceRecord[] = [];
     const csStale: ConformanceRecord[] = [];
@@ -96,7 +96,7 @@ export class ConformanceAuditor {
             const wfMilestone = wfChromeSupport ? parseInt(wfChromeSupport, 10) : null;
             
             const allKeys = wfFeature.compat_features || [];
-            const recordStub = {
+            const recordBase = {
               id: data.id,
               name: data.name,
               symbol: webFeatureId,
@@ -106,7 +106,7 @@ export class ConformanceAuditor {
 
             if (allKeys.length === 0) {
               noBcdKeys.push({
-                ...recordStub,
+                ...recordBase,
                 collector: 'N/A',
                 keys: ''
               });
@@ -124,7 +124,7 @@ export class ConformanceAuditor {
             
             if (passedKeys.length === 0) {
               noCollectorData.push({
-                ...recordStub,
+                ...recordBase,
                 collector: 'No collector data',
                 keys: keys.length > 3
                   ? `${keys.slice(0, 3).join(', ')} ... (+${keys.length - 3} more)`
@@ -152,7 +152,7 @@ export class ConformanceAuditor {
             }
 
             const record: ConformanceRecord = {
-              ...recordStub,
+              ...recordBase,
               collector: `${collectorDisplay}${displayNote}`,
               keys: keys.length > 1
                 ? `${keys[0]} (+${keys.length - 1} more)`

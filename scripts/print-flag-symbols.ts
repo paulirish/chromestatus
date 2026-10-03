@@ -4,14 +4,14 @@ async function main() {
   const client = await ChromeStatusClient.create();
   
   console.log("==================================================================");
-  console.log("   AUTHORITATIVE EXPERIMENTAL WEB PLATFORM FLAG INVENTORY");
+  console.log("   AUTHORITATIVE RUNTIME FLAG INVENTORY");
   console.log("==================================================================\n");
 
-  const flagFeatures = client.getExperimentalFlagFeatures();
+  const flagFeatures = client.getFlagFeatures();
   const mappedRecords = flagFeatures.filter(f => f.web_feature && f.web_feature.trim() !== '' && f.web_feature.toLowerCase() !== 'none' && f.web_feature !== 'Missing feature');
   const unmappedRecords = flagFeatures.filter(f => !f.web_feature || f.web_feature.trim() === '' || f.web_feature.toLowerCase() === 'none' || f.web_feature === 'Missing feature');
 
-  const flagWebFeatureIds = client.getExperimentalFlagWebFeatureIds();
+  const flagWebFeatureIds = client.getFlagWebFeatureIds();
   
   console.log(`[Section 1]: Verified Mapped Web Feature IDs (${flagWebFeatureIds.length} unique identifiers mapped across ${mappedRecords.length} feature records):\n`);
   console.log(JSON.stringify(flagWebFeatureIds, null, 2));

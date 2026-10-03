@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { features as webFeatures } from 'web-features';
-import type { ChromeStatusFeatureStub } from '../src/types.ts';
+import type { ChromeStatusFeatureBasic } from '../src/types.ts';
 
 test('WebFeature Join Fidelity - String identifiers map perfectly to web-features catalog', () => {
   const knownWebFeatureIds = [
@@ -29,7 +29,7 @@ test('WebFeature Join Fidelity - String identifiers map perfectly to web-feature
 });
 
 test('WebFeature Population Metrics - Audits catalog string identifier presence and package mapping validity', async () => {
-  let features: ChromeStatusFeatureStub[] = [];
+  let features: ChromeStatusFeatureBasic[] = [];
   try {
     const litePath = path.resolve(process.cwd(), 'data', 'lite.json');
     const text = await fs.readFile(litePath, 'utf8');

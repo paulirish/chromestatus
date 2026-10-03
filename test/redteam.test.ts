@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ChromeStatusClient } from '../src/index.ts';
-import type { ChromeStatusFeatureStub } from '../src/types.ts';
+import type { ChromeStatusFeatureBasic } from '../src/types.ts';
 
 test('RedTeam Audit: Immutability & Interface Invariant Bounds', () => {
-  const baseFeatures: ChromeStatusFeatureStub[] = [
+  const baseFeatures: ChromeStatusFeatureBasic[] = [
     {
       id: 101,
       name: 'Immutable Interface Capability',
@@ -43,7 +43,7 @@ test('RedTeam Audit: Immutability & Interface Invariant Bounds', () => {
 });
 
 test('RedTeam Audit: Sentinel Values & Unmapped Web Feature ID Extraction Bypassing', () => {
-  const sentinelFeatures: ChromeStatusFeatureStub[] = [
+  const sentinelFeatures: ChromeStatusFeatureBasic[] = [
     {
       id: 201,
       name: 'Sentinel Feature One',
@@ -85,7 +85,7 @@ test('RedTeam Audit: Sentinel Values & Unmapped Web Feature ID Extraction Bypass
 });
 
 test('RedTeam Audit: Multi-Mapping Cardinality Retention & Search Consensus', () => {
-  const multiFeatures: ChromeStatusFeatureStub[] = [
+  const multiFeatures: ChromeStatusFeatureBasic[] = [
     {
       id: 301,
       name: 'Accent Color Base Implementation',
@@ -130,8 +130,8 @@ test('RedTeam Audit: Multi-Mapping Cardinality Retention & Search Consensus', ()
   const client = new ChromeStatusClient(multiFeatures);
 
   // 1. Assert multi-record extraction retrieval safety
-  const matchingSet = client.findFeaturesBySymbol('accent-color');
-  assert.equal(matchingSet.length, 3, 'findFeaturesBySymbol must extract complete un-truncated sets sharing external keys');
+  const matchingSet = client.findFeaturesByWebFeatureId('accent-color');
+  assert.equal(matchingSet.length, 3, 'findFeaturesByWebFeatureId must extract complete un-truncated sets sharing external keys');
   assert.equal(matchingSet[0].id, 301, 'Output arrays must faithfully preserve initial constructor insertion precedence');
   assert.equal(matchingSet[2].id, 303);
 
@@ -148,6 +148,6 @@ test('RedTeam Audit: Malformed Payload Exception Propagation', async () => {
   const client = new ChromeStatusClient([]);
   // Expecting read logic mapping unresolvable/corrupted offline files to bubble critical OS errors natively
   // To verify deterministic error handling, passing an unresolvable descriptive feature title string
-  const unresolvable = await client.getFeatureDetailed("Unresolvable Hacked Title String");
+  const unresolvable = await client.getFeatureVerbose("Unresolvable Hacked Title String");
   assert.equal(unresolvable, undefined, 'Absent offline feature file targets evaluate as undefined cleanly');
 });

@@ -6,7 +6,7 @@ import { normalizeBaseUrl, extractAnchor, isSpecMatch } from '../src/spec-matche
 import { CollectorResultsIndex } from '../src/collector-results-index.ts';
 import { ConformanceAuditor } from '../src/conformance.ts';
 import { AlignmentAuditor } from '../src/alignment.ts';
-import type { ChromeStatusFeatureDetailed, ChromeStatusFeatureStub } from '../src/types.ts';
+import type { ChromeStatusFeatureVerbose, ChromeStatusFeatureBasic } from '../src/types.ts';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
@@ -137,7 +137,7 @@ test('Conformance Auditor - Conformant Case', () => {
         desktop: 116
       }
     }
-  } as unknown as ChromeStatusFeatureDetailed;
+  } as unknown as ChromeStatusFeatureVerbose;
 
   const result = auditor.audit([mockFeature]);
 
@@ -176,7 +176,7 @@ test('Conformance Auditor - Coarse Mapping Case', () => {
         desktop: 123
       }
     }
-  } as unknown as ChromeStatusFeatureDetailed;
+  } as unknown as ChromeStatusFeatureVerbose;
 
   // Let's mock webFeatures structure locally for view-transitions
   // In real test, it loads BCD keys from view-transitions: PageRevealEvent
@@ -197,7 +197,7 @@ test('Conformance Auditor - Coarse Mapping Case', () => {
 });
 
 test('Alignment Auditor - Diagnostics', () => {
-  const mockFeatures: ChromeStatusFeatureStub[] = [
+  const mockFeatures: ChromeStatusFeatureBasic[] = [
     {
       id: 10,
       name: "Orphan Feature",

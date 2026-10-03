@@ -1,5 +1,5 @@
 import { features as webFeatures } from 'web-features';
-import type { ChromeStatusFeatureStub } from './types.ts';
+import type { ChromeStatusFeatureBasic } from './types.ts';
 
 export interface AlignmentReport {
   orphans: { featureId: number; featureName: string; staleSymbol: string }[];
@@ -9,8 +9,8 @@ export interface AlignmentReport {
 }
 
 export class AlignmentAuditor {
-  static run(stubs: ChromeStatusFeatureStub[]): AlignmentReport {
-    const candidateStubs = stubs.filter(f => 
+  static run(features: ChromeStatusFeatureBasic[]): AlignmentReport {
+    const candidateFeatures = features.filter(f => 
       f.web_feature && typeof f.web_feature === 'string' && f.web_feature.trim() !== '' && f.web_feature !== 'Missing feature'
     );
 
@@ -21,9 +21,9 @@ export class AlignmentAuditor {
       collisions: []
     };
 
-    const webFeatureIdGroupings = new Map<string, ChromeStatusFeatureStub[]>();
+    const webFeatureIdGroupings = new Map<string, ChromeStatusFeatureBasic[]>();
 
-    for (const feature of candidateStubs) {
+    for (const feature of candidateFeatures) {
       const webFeatureId = feature.web_feature!.trim();
       
       if (!webFeatureIdGroupings.has(webFeatureId)) {
