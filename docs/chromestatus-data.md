@@ -60,12 +60,12 @@ To bridge these API constraints without imposing massive data penalties on downs
 
 ```mermaid
 graph TD
-    API1[ChromeStatus API <br> Verbose Features] -->|build/fetch.ts| DataDir[Local /data/ Layer]
-    API2[ChromeStatus API <br> Basic Features Array] -->|build/fetch.ts| DataDir
+    API1[ChromeStatus API <br> Verbose Features] -->|build/download-raw.ts + build/compile-data.ts| DataDir[Local /data/ Layer]
+    API2[ChromeStatus API <br> Basic Features Array] -->|build/download-raw.ts + build/compile-data.ts| DataDir
     DataDir -->|Synchronous Import| Basic[catalog.features <br> Instant In-Memory Indexing]
     DataDir -->|Dynamic import()| Hydrate[catalog.getFeatureVerbose id <br> Zero-Footprint Lazy Resolution]
 ```
 
 1. **Zero-Bloat Bundling**: The library packages flat records as `data/basic.json`. Consumers construct initial collection search index sets synchronously without bundling unused JSON data.
 2. **Lazy Hydration**: When granular lifecycle history or stage approval structures are required, the class instances load verbose features dynamically from individual feature files (`data/features/<id>.json`).
-3. **Pre-Compiled OT Maps**: Extracted Origin Trial arrays (`data/active-ot-index.json`) evaluate initial signal gating requests in sub-millisecond execution loops without instantiating deep domain wrappers.
+3. **Compiled Fields**: Each basic and verbose feature carries `web_feature_ids`, `baseline_year`, and `gated_by` (Active Origin Trial or flag), computed once at compile time.

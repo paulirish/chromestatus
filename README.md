@@ -30,8 +30,14 @@ The live API's single feature lookup payload is ~55MB across all active records.
 2. **Verbose Features (`data/features/<id>.json`, ~20KB each)**:
    * Individual standalone files containing full verbose features (full nested `stages` array, extensive web URLs, and customized metrics). Keyed natively on persistent immutable database keys to maximize OS compatibility while remaining fully abstracted from user access layers.
    * Imported dynamically at runtime via `fs.readFile` to ensure absolute tree-shaking efficiency.
-3. **Gating Maps (`data/active-ot-index.json` & `data/flag-index.json`)**:
-   * Pre-extracted numeric arrays containing only active Origin Trial or flag IDs for instant status verification without initializing heavy models.
+
+Compile adds three fields to every basic and verbose feature:
+
+* `web_feature_ids: string[]`: the override if one exists, otherwise the ChromeStatus `web_feature` value, split, lowercased, with `moved` IDs resolved. Empty when unmapped.
+* `baseline_year?: number`: latest Baseline (newly available) year across those IDs.
+* `gated_by: ('Origin Trial' | 'Flag')[]`: whether the feature is in an Active Origin Trial (per the Origin Trials API) or behind a flag. Features that reached Baseline before 2024 are never gated.
+
+`data/web-feature-extras.json` holds [web-features-mappings](https://github.com/web-platform-dx/web-features-mappings) data for every referenced web feature ID.
 
 ---
 
@@ -52,14 +58,12 @@ async function run() {
   const feature = client.findFeature('HTML-in-canvas');
   if (!feature) return;
 
-  console.log(`Found feature: ${feature.name}`);
-  console.log(`Mapped Web Feature ID: ${feature.web_feature}`);
+  console.log(feature.name);            // 'HTML-in-canvas'
+  console.log(feature.web_feature_ids); // ['canvas-html']
+  console.log(feature.gated_by);        // ['Origin Trial']
 
-  // Synchronously verify runtime configuration gating states
-  const isOt = client.isFeatureInActiveOriginTrial(feature.id);
-  const isFlagged = client.isFeatureBehindFlag(feature.id);
-  console.log(`Is in active Origin Trial: ${isOt}`);
-  console.log(`Is behind a flag: ${isFlagged}`);
+  // Every ChromeStatus feature mapped to a web feature ID
+  const features = client.findFeaturesByWebFeatureId('view-transitions');
 }
 ```
 
@@ -67,29 +71,16 @@ async function run() {
 
 ### 2. Interrogating Gated Features (Origin Trials & Flags)
 
-To retrieve full active collections or standalone deduplicated string mapping profiles synchronously without risking accounting drop-out for unmapped extensions:
-
 ```typescript
 import { ChromeStatusClient } from '@paulirish/chromestatus';
 
 async function run() {
   const client = await ChromeStatusClient.create();
 
-  // --- COMBINED GATED INVENTORY (OT & Flags) ---
-  // Retrieve a combined inventory of all features gated behind Origin Trials or Flags
-  // Includes validation data (baseline year) if available.
-  const inventory = client.getGatedFeaturesInventory();
-  
-  // Print the first 5 items as an example
-  console.log(inventory.slice(0, 5));
-  
-  // Example output item:
-  // {
-  //   name: 'HTML-in-canvas',
-  //   gatedBy: ['Origin Trial'],
-  //   webFeatureId: 'canvas-html',
-  //   baselineYear: undefined
-  // }
+  const gated = client.getGatedFeatures();                    // in an Active Origin Trial or behind a flag
+  const inTrial = client.getGatedFeatures('Origin Trial');
+  const trialIds = client.getGatedWebFeatureIds('Origin Trial'); // sorted union of web_feature_ids
+  const unmappedFlags = client.getGatedFeatures('Flag').filter(f => !f.web_feature_ids.length);
 }
 ```
 
@@ -106,10 +97,10 @@ async function run() {
   const client = await ChromeStatusClient.create();
 
   // Access full basic feature records array directly
-  const graphicsFeatures = client.features.filter(f => f.category === 'Graphics');
+  const breakingChanges = client.features.filter(f => f.breaking_change);
 
   // Group arbitrary collections using native ES2023 Object.groupBy()
-  const groupedByCategory = Object.groupBy(client.features, f => f.category);
+  const byStatus = Object.groupBy(client.features, f => f.browsers.chrome.status.text);
 
   // Dynamically resolve granular timeline structures (full stages array, custom URLs) over storage boundaries
   // Natively supports passing descriptive feature title strings to abstract numeric database IDs entirely
@@ -140,28 +131,20 @@ To support developer workflows, the project provides several scripts divided int
 #### 1. Data Compilation Pipelines
 *   `pnpm run fetch`: Complete pipeline to sync the codebase: runs `download` then `compile`.
 *   `pnpm run download`: Downloads raw REST endpoints from ChromeStatus.com and collector configurations into `data/raw/` caching layers.
-*   `pnpm run compile`: Processes cached raw archives, runs verification checks, maps overrides, and writes the optimized database layers (`data/basic.json`, active index files, individual feature files, and `data/web-feature-extras.json`). web-features IDs marked `moved` are rewritten to their redirect target.
+*   `pnpm run compile`: Processes cached raw archives, runs verification checks, maps overrides, and writes the optimized database layers (`data/basic.json`, individual feature files, and `data/web-feature-extras.json`). Fails if any raw input is missing.
 
-#### 2. Conformance & Alignment Audits
+#### 2. Conformance & Mapping Audits
 *   `pnpm run audit:conformance`: Compares ChromeStatus, static BCD support, and `mdn-bcd-results` collector files to generate a comprehensive lag and stale metadata report. Saves the report to [**`bcd_conformance_report.md`**](file:///Users/paulirish/code/chromestatus/bcd_conformance_report.md).
 *   `pnpm run audit:overrides`: Checks each entry in [`src/overrides.ts`](src/overrides.ts) against raw ChromeStatus data and [web-features-mappings](https://github.com/web-platform-dx/web-features-mappings). Exits non-zero when an override is redundant, broken (points to a moved/unknown ID), or unknown-name (no ChromeStatus feature has that name, e.g. it was renamed).
-*   `pnpm run audit:chromestatus-edits`: Writes `data/chromestatus-edit-suggestions.md`, a list of ChromeStatus `web_feature` fixes with evidence: overridden values, invalid or moved IDs, and candidate IDs for unmapped features from shared crbugs and MDN doc links.
-*   `pnpm run audit:alignment`: Runs diagnostics against ChromeStatus basic features mapping to the static `web-features` package catalog to report schema drift, redirects, collisions, or orphan web feature IDs.
+*   `pnpm run audit:chromestatus-edits`: Writes `data/chromestatus-edit-suggestions.md`, a list of ChromeStatus `web_feature` fixes with evidence: overridden values, invalid or moved IDs, and candidate IDs for unmapped features. Candidate evidence, strongest first: a crbug shared with a web feature in web-features-mappings, MDN doc links, a spec URL listed by exactly one web feature, a web feature name contained in the feature name. Gated features are marked.
 
-#### 3. Diagnostic & Inventory Printers
-*   `pnpm run audit:ot-web-feature-ids`: Prints all active Origin Trial web feature IDs based on pre-compiled active maps.
-*   `pnpm run audit:flag-web-feature-ids`: Prints all ChromeStatus features currently gated by active browser flags.
-*   `pnpm run audit:gated`: Prints a detailed inventory of all gated features (Origin Trials or flags) and flags suspicious old items that have already shipped.
-*   `pnpm run audit:mappings`: Prints a markdown mapping table connecting web feature IDs to ChromeStatus feature names and spec links.
-*   `pnpm run audit:unmapped-ots`: Identifies any active Origin Trials in ChromeStatus that are lacking mapped web feature IDs.
-
-#### 4. Matching & Mapping Boostrap Helpers (Run manually)
-*   `node scripts/map-features-jaccard.ts`: Uses token similarity to suggest web feature IDs for unmapped ChromeStatus features.
-*   `node scripts/cross-reference-unmapped-features.ts`: Matches unmapped features by matching ChromeStatus spec URLs against BCD specifications.
+#### 3. Printers
+*   `pnpm run audit:gated`: Prints features in an Active Origin Trial or behind a flag, per gate, with their web feature IDs and the unmapped ones. `--json` for machine output.
+*   `pnpm run audit:mappings`: Prints a markdown table of every web feature ID → ChromeStatus feature mapping.
 
 ---
 
 ## 🧪 Testing & Verification
 
 *   `pnpm run typecheck`: Validates Type safety without emitting build assets.
-*   `pnpm run test`: Runs the test suite in `test/` using the native Node.js test runner (`node --test`). Includes unit coverage for all core SDK components, tokenizers, overrides, and similarity matchers.
+*   `pnpm run test`: Runs the test suite in `test/` using the native Node.js test runner (`node --test`). Includes unit coverage for compile helpers, the client, mapping audits, and conformance.
