@@ -5,9 +5,9 @@
 > [!WARNING]  
 > **API Under Construction**: The public interfaces and exported wrapper models in this library are currently under active development. The API configuration is highly volatile and likely to change dramatically in upcoming snapshot versions as abstraction layers are hardened.
 
-A highly optimized, zero-build JavaScript/TypeScript client library encapsulating static periodic snapshots of the **ChromeStatus.com** feature catalog.
+A JavaScript/TypeScript client library for static snapshots of the **ChromeStatus.com** feature catalog.
 
-Designed following strict standards for **erasable syntax** (zero standard runtime enums), **native collections** (`Object.groupBy`), and **hybrid hydration**, this package solves the raw 55MB JSON bundle bottleneck by loading flat metadata arrays synchronously while fetching exhaustive feature timelines strictly on-demand.
+Features are loaded from flat pre-compiled JSON (`data/basic.json`), with detailed feature timelines loaded on demand from individual files (`data/features/<id>.json`).
 
 ---
 
@@ -23,13 +23,13 @@ pnpm add @paulirish/chromestatus
 
 ## 🏗️ Architecture & Packaging Strategy
 
-The live API's single feature lookup payload is ~55MB across all active records. To prevent bundle bloat in consumer client applications, this package splits the database at compile time into isolated layers:
+ChromeStatus's full verbose catalog is ~55MB. To keep memory use reasonable in consumers, this package splits the data at compile time:
 
-1. **Base Index (`data/basic.json`, ~8.9MB)**:
-   * Basic features providing immediate synchronous collection scanning, search filtering, and index setup.
+1. **Base Index (`data/basic.json`, ~10MB)**:
+   * Basic features for synchronous filtering, search, and catalog scanning.
 2. **Verbose Features (`data/features/<id>.json`, ~20KB each)**:
-   * Individual standalone files containing full verbose features (full nested `stages` array, extensive web URLs, and customized metrics). Keyed natively on persistent immutable database keys to maximize OS compatibility while remaining fully abstracted from user access layers.
-   * Imported dynamically at runtime via `fs.readFile` to ensure absolute tree-shaking efficiency.
+   * Individual files containing verbose feature records (stages array, intent threads, experiment goals, and metrics).
+   * Loaded asynchronously on demand via `client.getFeatureVerbose(name)`.
 
 Compile adds three fields to every basic and verbose feature:
 
@@ -88,7 +88,7 @@ async function run() {
 
 ### 3. Filtering Collections & Resolving Verbose Timelines
 
-The package exposes convenient native array accessors alongside dynamic verbose feature resolvers to inspect absolute single-item lifecycle configurations on-demand:
+Inspect basic feature lists and load verbose timelines on demand:
 
 ```typescript
 import { ChromeStatusClient } from '@paulirish/chromestatus';
@@ -96,14 +96,13 @@ import { ChromeStatusClient } from '@paulirish/chromestatus';
 async function run() {
   const client = await ChromeStatusClient.create();
 
-  // Access full basic feature records array directly
+  // Access basic feature records
   const breakingChanges = client.features.filter(f => f.breaking_change);
 
-  // Group arbitrary collections using native ES2023 Object.groupBy()
+  // Group features using Object.groupBy()
   const byStatus = Object.groupBy(client.features, f => f.browsers.chrome.status.text);
 
-  // Dynamically resolve granular timeline structures (full stages array, custom URLs) over storage boundaries
-  // Natively supports passing descriptive feature title strings to abstract numeric database IDs entirely
+  // Load full feature timeline (stages array, custom URLs) by name
   const verboseMetadata = await client.getFeatureVerbose('HTML-in-canvas');
   console.log(verboseMetadata?.stages);
 
