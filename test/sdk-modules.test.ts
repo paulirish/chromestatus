@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { CUSTOM_WEB_FEATURE_OVERRIDES } from '../src/overrides.ts';
 import { tokenize, jaccardIndex, overlapCoefficient } from '../src/text-analyzer.ts';
 import { normalizeBaseUrl, extractAnchor, isSpecMatch } from '../src/spec-matcher.ts';
-import { EmpiricalSupportIndex } from '../src/empirical-index.ts';
+import { CollectorResultsIndex } from '../src/collector-results-index.ts';
 import { ConformanceAuditor } from '../src/conformance.ts';
 import { AlignmentAuditor } from '../src/alignment.ts';
 import type { ChromeStatusFeatureDetailed, ChromeStatusFeatureStub } from '../src/types.ts';
@@ -76,8 +76,8 @@ test('Spec Matcher Alignment', () => {
   ), false);
 });
 
-test('Empirical Support Index Chronological Loading', () => {
-  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'empirical-index-test-'));
+test('Collector Results Index Chronological Loading', () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'collector-results-index-test-'));
   
   const file1 = path.join(tempDir, '100.0.1000.0-chrome-100.0.1000.0-windows-unknown-0000000000.json');
   fs.writeFileSync(file1, JSON.stringify({
@@ -96,7 +96,7 @@ test('Empirical Support Index Chronological Loading', () => {
   }));
 
   try {
-    const index = EmpiricalSupportIndex.loadFromDir(tempDir);
+    const index = CollectorResultsIndex.loadFromDir(tempDir);
 
     const supportFoo = index.getSupport('api.foo.bar');
     assert.ok(supportFoo);
@@ -115,17 +115,17 @@ test('Empirical Support Index Chronological Loading', () => {
   }
 });
 
-test('Conformance Auditor - Aligned Case', () => {
-  const mockEmpiricalIndex = {
+test('Conformance Auditor - Conformant Case', () => {
+  const mockCollectorIndex = {
     getSupport(bcdKey: string) {
       if (bcdKey.includes('popover')) {
         return { majorVersion: 116, fullVersion: '116.0.0.0' };
       }
       return undefined;
     }
-  } as unknown as EmpiricalSupportIndex;
+  } as unknown as CollectorResultsIndex;
 
-  const auditor = new ConformanceAuditor(mockEmpiricalIndex);
+  const auditor = new ConformanceAuditor(mockCollectorIndex);
 
   const mockFeature = {
     id: 1,
@@ -141,12 +141,12 @@ test('Conformance Auditor - Aligned Case', () => {
 
   const result = auditor.audit([mockFeature]);
 
-  assert.equal(result.aligned.length, 1);
-  assert.equal(result.aligned[0].id, 1);
-  assert.equal(result.aligned[0].name, "Popover API");
-  assert.equal(result.aligned[0].csMilestone, 116);
-  assert.equal(result.aligned[0].wfMilestone, "M116");
-  assert.ok(result.aligned[0].empirical.startsWith("M116"));
+  assert.equal(result.conformant.length, 1);
+  assert.equal(result.conformant[0].id, 1);
+  assert.equal(result.conformant[0].name, "Popover API");
+  assert.equal(result.conformant[0].csMilestone, 116);
+  assert.equal(result.conformant[0].wfMilestone, "M116");
+  assert.ok(result.conformant[0].collector.startsWith("M116"));
   
   assert.equal(result.bcdLagging.length, 0);
   assert.equal(result.csStale.length, 0);
@@ -155,16 +155,16 @@ test('Conformance Auditor - Aligned Case', () => {
 });
 
 test('Conformance Auditor - Coarse Mapping Case', () => {
-  const mockEmpiricalIndex = {
+  const mockCollectorIndex = {
     getSupport(bcdKey: string) {
       if (bcdKey.includes('pagereveal')) {
         return { majorVersion: 123, fullVersion: '123.0.0.0' };
       }
       return undefined;
     }
-  } as unknown as EmpiricalSupportIndex;
+  } as unknown as CollectorResultsIndex;
 
-  const auditor = new ConformanceAuditor(mockEmpiricalIndex);
+  const auditor = new ConformanceAuditor(mockCollectorIndex);
 
   const mockFeature = {
     id: 2,
@@ -180,7 +180,7 @@ test('Conformance Auditor - Coarse Mapping Case', () => {
 
   // Let's mock webFeatures structure locally for view-transitions
   // In real test, it loads BCD keys from view-transitions: PageRevealEvent
-  // Our local mockEmpiricalIndex returns M123 for PageRevealEvent keys.
+  // Our local mockCollectorIndex returns M123 for PageRevealEvent keys.
   // And view-transitions static milestone in web-features is M111.
   const result = auditor.audit([mockFeature]);
 
@@ -188,9 +188,9 @@ test('Conformance Auditor - Coarse Mapping Case', () => {
   assert.equal(result.coarseMapping[0].id, 2);
   assert.equal(result.coarseMapping[0].csMilestone, 123);
   assert.equal(result.coarseMapping[0].wfMilestone, "M111");
-  assert.ok(result.coarseMapping[0].empirical.startsWith("M123"));
+  assert.ok(result.coarseMapping[0].collector.startsWith("M123"));
 
-  assert.equal(result.aligned.length, 0);
+  assert.equal(result.conformant.length, 0);
   assert.equal(result.bcdLagging.length, 0);
   assert.equal(result.csStale.length, 0);
   assert.equal(result.flagGaps.length, 0);

@@ -1,5 +1,5 @@
 import type { ChromeStatusFeatureDetailed } from './types.ts';
-import { EmpiricalSupportIndex } from './empirical-index.ts';
+import { CollectorResultsIndex } from './collector-results-index.ts';
 import { tokenize } from './text-analyzer.ts';
 import { features as webFeatures } from 'web-features';
 
@@ -9,17 +9,17 @@ export interface ConformanceRecord {
   symbol: string;
   csMilestone: number;
   wfMilestone: string;
-  empirical: string;
+  collector: string;
   keys: string;
 }
 
 export interface ConformanceAuditResult {
-  aligned: ConformanceRecord[];
+  conformant: ConformanceRecord[];
   bcdLagging: ConformanceRecord[];
   csStale: ConformanceRecord[];
   flagGaps: ConformanceRecord[];
   coarseMapping: ConformanceRecord[];
-  noEmpiricalData: ConformanceRecord[];
+  noCollectorData: ConformanceRecord[];
   noBcdKeys: ConformanceRecord[];
 }
 
@@ -65,18 +65,18 @@ function filterRelevantBcdKeys(keys: string[], csName: string, csSummary: string
 }
 
 export class ConformanceAuditor {
-  private empiricalIndex: EmpiricalSupportIndex;
-  constructor(empiricalIndex: EmpiricalSupportIndex) {
-    this.empiricalIndex = empiricalIndex;
+  private collectorIndex: CollectorResultsIndex;
+  constructor(collectorIndex: CollectorResultsIndex) {
+    this.collectorIndex = collectorIndex;
   }
 
   audit(featuresList: ChromeStatusFeatureDetailed[]): ConformanceAuditResult {
-    const aligned: ConformanceRecord[] = [];
+    const conformant: ConformanceRecord[] = [];
     const bcdLagging: ConformanceRecord[] = [];
     const csStale: ConformanceRecord[] = [];
     const flagGaps: ConformanceRecord[] = [];
     const coarseMapping: ConformanceRecord[] = [];
-    const noEmpiricalData: ConformanceRecord[] = [];
+    const noCollectorData: ConformanceRecord[] = [];
     const noBcdKeys: ConformanceRecord[] = [];
 
     for (const data of featuresList) {
@@ -107,7 +107,7 @@ export class ConformanceAuditor {
             if (allKeys.length === 0) {
               noBcdKeys.push({
                 ...recordStub,
-                empirical: 'N/A',
+                collector: 'N/A',
                 keys: ''
               });
               continue;
@@ -116,16 +116,16 @@ export class ConformanceAuditor {
             const keys = filterRelevantBcdKeys(allKeys, data.name, data.summary || '');
 
             const keyResults = (keys as string[]).map((k: string) => {
-              const emp = this.empiricalIndex.getSupport(k);
-              return { key: k, version: emp ? emp.majorVersion : null };
+              const collectorSupport = this.collectorIndex.getSupport(k);
+              return { key: k, version: collectorSupport ? collectorSupport.majorVersion : null };
             });
 
             const passedKeys = keyResults.filter((r: { key: string, version: number | null }) => r.version !== null);
             
             if (passedKeys.length === 0) {
-              noEmpiricalData.push({
+              noCollectorData.push({
                 ...recordStub,
-                empirical: 'No empirical data',
+                collector: 'No collector data',
                 keys: keys.length > 3
                   ? `${keys.slice(0, 3).join(', ')} ... (+${keys.length - 3} more)`
                   : keys.join(', ')
@@ -133,15 +133,15 @@ export class ConformanceAuditor {
               continue;
             }
 
-            const empiricalVersions = passedKeys.map((r: { key: string, version: number | null }) => r.version as number);
-            const minEmpVersion = Math.min(...empiricalVersions);
-            const maxEmpVersion = Math.max(...empiricalVersions);
+            const collectorVersions = passedKeys.map((r: { key: string, version: number | null }) => r.version as number);
+            const minCollectorVersion = Math.min(...collectorVersions);
+            const maxCollectorVersion = Math.max(...collectorVersions);
             
-            const empiricalDisplay = minEmpVersion === maxEmpVersion 
-              ? `M${minEmpVersion}` 
-              : `M${minEmpVersion} - M${maxEmpVersion}`;
+            const collectorDisplay = minCollectorVersion === maxCollectorVersion 
+              ? `M${minCollectorVersion}` 
+              : `M${minCollectorVersion} - M${maxCollectorVersion}`;
 
-            const hasMismatch = minEmpVersion !== maxEmpVersion;
+            const hasMismatch = minCollectorVersion !== maxCollectorVersion;
             const hasMissingKeys = passedKeys.length < keys.length;
             
             let displayNote = '';
@@ -153,40 +153,40 @@ export class ConformanceAuditor {
 
             const record: ConformanceRecord = {
               ...recordStub,
-              empirical: `${empiricalDisplay}${displayNote}`,
+              collector: `${collectorDisplay}${displayNote}`,
               keys: keys.length > 1
                 ? `${keys[0]} (+${keys.length - 1} more)`
                 : keys[0] || ''
             };
 
-            const isMilestoneInEmpiricalRange = wfMilestone !== null && wfMilestone >= minEmpVersion && wfMilestone <= maxEmpVersion;
-            const isEarlyEmpiricalPass = wfMilestone !== null && minEmpVersion < wfMilestone;
+            const isMilestoneInCollectorRange = wfMilestone !== null && wfMilestone >= minCollectorVersion && wfMilestone <= maxCollectorVersion;
+            const isEarlyCollectorPass = wfMilestone !== null && minCollectorVersion < wfMilestone;
 
-            // Categorize based on alignment
+            // Categorize based on conformance
             if (wfMilestone !== null) {
-              // 1. Aligned: CS and BCD agree, and collector tests confirm support at/before that milestone
-              if (csMilestone === wfMilestone && (isMilestoneInEmpiricalRange || isEarlyEmpiricalPass)) {
-                aligned.push(record);
+              // 1. Conformant: CS and BCD agree, and collector tests confirm support at/before that milestone
+              if (csMilestone === wfMilestone && (isMilestoneInCollectorRange || isEarlyCollectorPass)) {
+                conformant.push(record);
               }
               // 2. ChromeStatus Stale: BCD and collector agree (or collector is earlier), but CS is different
-              else if ((wfMilestone === minEmpVersion || isEarlyEmpiricalPass) && csMilestone !== wfMilestone) {
+              else if ((wfMilestone === minCollectorVersion || isEarlyCollectorPass) && csMilestone !== wfMilestone) {
                 csStale.push(record);
               }
               // 3. Coarse Mapping: BCD is earlier than the earliest collector passing test
-              else if (wfMilestone < minEmpVersion) {
+              else if (wfMilestone < minCollectorVersion) {
                 coarseMapping.push(record);
               }
               // 4. Static BCD Lagging: Collector tests passed at/before CS milestone, but BCD is later
-              else if (minEmpVersion <= csMilestone && wfMilestone > csMilestone) {
+              else if (minCollectorVersion <= csMilestone && wfMilestone > csMilestone) {
                 bcdLagging.push(record);
               }
               // 5. Flag Gaps / Collector Late Tests: Collector tests passed later than both CS and BCD records
-              else if (minEmpVersion > csMilestone && minEmpVersion > wfMilestone) {
+              else if (minCollectorVersion > csMilestone && minCollectorVersion > wfMilestone) {
                 flagGaps.push(record);
               }
               // 6. Fallback/Complex cases
               else {
-                if (wfMilestone > maxEmpVersion) {
+                if (wfMilestone > maxCollectorVersion) {
                   bcdLagging.push(record);
                 } else {
                   flagGaps.push(record);
@@ -194,7 +194,7 @@ export class ConformanceAuditor {
               }
             } else {
               // BCD has no support recorded (wfMilestone === null)
-              if (minEmpVersion <= csMilestone) {
+              if (minCollectorVersion <= csMilestone) {
                 bcdLagging.push(record);
               } else {
                 flagGaps.push(record);
@@ -206,12 +206,12 @@ export class ConformanceAuditor {
     }
 
     return {
-      aligned,
+      conformant,
       bcdLagging,
       csStale,
       flagGaps,
       coarseMapping,
-      noEmpiricalData,
+      noCollectorData,
       noBcdKeys
     };
   }

@@ -1,19 +1,19 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-export interface EmpiricalSupport {
+export interface CollectorSupport {
   majorVersion: number;
   fullVersion: string;
 }
 
-export class EmpiricalSupportIndex {
-  private supportMap = new Map<string, EmpiricalSupport>();
+export class CollectorResultsIndex {
+  private supportMap = new Map<string, CollectorSupport>();
 
   /**
    * Chronologically processes collector run results and registers the earliest positive version.
    */
-  static loadFromDir(resultsDir: string): EmpiricalSupportIndex {
-    const index = new EmpiricalSupportIndex();
+  static loadFromDir(resultsDir: string): CollectorResultsIndex {
+    const index = new CollectorResultsIndex();
     if (!fs.existsSync(resultsDir)) return index;
 
     const filenameRegex = /^[0-9.]+-chrome-([0-9.]+)-windows-[0-9a-zA-Z.-]+-[0-9a-f]+\.json$/;
@@ -50,7 +50,7 @@ export class EmpiricalSupportIndex {
     return index;
   }
 
-  getSupport(bcdKey: string): EmpiricalSupport | undefined {
+  getSupport(bcdKey: string): CollectorSupport | undefined {
     return this.supportMap.get(bcdKey);
   }
 }

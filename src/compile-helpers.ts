@@ -64,7 +64,7 @@ export function evaluateActiveOriginTrial(
     }
   }
 
-  // Check 2: If absent from OT API feeds, evaluate strict empirical scheduling limits
+  // Check 2: If absent from OT API feeds, evaluate strict milestone scheduling limits
   if (!isGenuinelyActive) {
     const isShippedOrDead = f.is_released === true ||
                             f.unlisted === true ||
