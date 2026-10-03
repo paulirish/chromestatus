@@ -19,6 +19,14 @@ A cross-browser web platform capability defined by the [web-features](https://gi
 
 * _Reference_: `src/types.ts#ChromeStatusFeatureStub.web_feature`
 
+### Web feature ID
+
+The lowercase hyphenated slug that identifies a web feature (e.g. `canvas-html`). `web_feature` is the ChromeStatus field that stores it and stays as-is because it is part of the wire format. Use "web feature ID" in prose, identifiers, and reports.
+
+* _Reference_: `src/index.ts#ChromeStatusClient.getActiveOriginTrialWebFeatureIds`
+* _AKA_: feature ID / feature identifier — used by web-features
+* _Avoid_: symbol, WebDX symbol, shortcode — rejected in favor of the upstream term
+
 ### BCD key
 
 A dotted path in [@mdn/browser-compat-data](https://github.com/mdn/browser-compat-data) (e.g. `api.CSSPositionTryDescriptors`), the finest granularity in this project. A web feature lists the BCD keys it covers. BCD keys are what collector tests check.
@@ -26,11 +34,34 @@ A dotted path in [@mdn/browser-compat-data](https://github.com/mdn/browser-compa
 * _Reference_: `src/empirical-index.ts#EmpiricalSupportIndex.getSupport`
 * _AKA_: compat feature — used by web-features (`compat_features`)
 
+### Collector results
+
+Per-BCD-key pass/fail results from running [mdn-bcd-collector](https://github.com/openwebdocs/mdn-bcd-collector) tests against real Chrome releases, read from the `mdn-bcd-results` submodule. This project uses only Chrome desktop on Windows runs. Not to be confused with BCD itself, which is curated documentation; collector results are observed behavior and act as ground truth in the conformance audit.
+
+* _Reference_: `src/empirical-index.ts#EmpiricalSupportIndex`
+* _Avoid_: empirical — superseded in reports by commit 5b80fb1; rejected by the user for code too
+
 ### Feature name
 
 The human-readable title of a ChromeStatus feature (`name`), used as the semantic lookup key. During compilation, duplicate titles get a ` (Phase N)` suffix, so a feature name in this package may not exactly match the title on ChromeStatus.com.
 
 * _Reference_: `src/compile-helpers.ts#disambiguateFeatureNames`
+
+### Basic feature
+
+The shallow representation of a ChromeStatus feature: core identity, status, and browser fields, with no full stage records. All basic features are bundled together and loaded synchronously. Not to be confused with a verbose feature, which adds full stages and extended fields and is loaded on demand.
+
+* _Reference_: `src/types.ts#ChromeStatusFeatureStub`, `data/lite.json`
+* _AKA_: basic — used by ChromeStatus (`feature_entry_to_json_basic`)
+* _Avoid_: stub, lite, Option 2 — rejected in favor of the upstream term
+
+### Verbose feature
+
+The full representation of one ChromeStatus feature, including its stages, as returned by the ChromeStatus single-feature API. It is stored as one file per feature and loaded on demand.
+
+* _Reference_: `src/types.ts#ChromeStatusFeatureDetailed`, `data/features/`
+* _AKA_: verbose — used by ChromeStatus (`feature_entry_to_json_verbose`, `VerboseFeatureDict`)
+* _Avoid_: detailed, chunk, Option 1 — rejected in favor of the upstream term
 
 ## Lifecycle and gating
 
@@ -51,6 +82,13 @@ A derived status: an Origin Trial that is currently running for developers, as d
 A not-yet-shipped ChromeStatus feature that can only be enabled through an Active Origin Trial or a browser flag. "Gated" is the umbrella for both mechanisms. Not to be confused with a ChromeStatus review **gate** (approval checkpoints such as privacy or security review exposed by the `/gates` API), which is a process concept unrelated to runtime availability.
 
 * _Reference_: `src/index.ts#ChromeStatusClient.getGatedFeaturesInventory`
+
+### Flag
+
+A browser runtime switch (such as an entry in `chrome://flags` or a command-line switch) that enables an unshipped feature. A feature that requires one is "behind a flag". This covers any flag, not only `--enable-experimental-web-platform-features`. Not to be confused with the ChromeStatus "Intent to Experiment" stage, which is an Origin Trial process step.
+
+* _Reference_: `src/compile-helpers.ts#evaluateBehindFlag`, `data/experimental-flag-index.json`
+* _Avoid_: experimental flag — implies only the experimental web platform features switch, and collides with "Intent to Experiment"
 
 ## Mapping
 
