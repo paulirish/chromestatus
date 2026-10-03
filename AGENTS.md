@@ -14,3 +14,6 @@ This manifest dictates core system-level conventions and constraints enforced ac
 
 ## 2. AI-First Code Optimization
 * All source logic must optimize for predictable, single-phase execution pathways, immutable Readonly encapsulation envelopes, and complete preservation of pre-existing domain documentation blocks.
+
+## 3. Domain Vocabulary
+* Use the canonical terms and boundaries in [LEXICON.md](./LEXICON.md) for identifiers, docs, and reports. Do not introduce new synonyms for concepts it defines.
