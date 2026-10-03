@@ -4,14 +4,14 @@ import { features as webFeatures } from 'web-features';
 import type { ChromeStatusFeatureBasic } from '../src/types.ts';
 
 async function main() {
-  const litePath = path.resolve(process.cwd(), 'data', 'lite.json');
+  const basicPath = path.resolve(process.cwd(), 'data', 'basic.json');
   let features: ChromeStatusFeatureBasic[] = [];
   
   try {
-    const text = await fs.readFile(litePath, 'utf8');
+    const text = await fs.readFile(basicPath, 'utf8');
     features = JSON.parse(text);
   } catch {
-    console.error('Error: Compiled snapshot data/lite.json not found. Please run `pnpm run fetch` first.');
+    console.error('Error: Compiled snapshot data/basic.json not found. Please run `pnpm run fetch` first.');
     process.exit(1);
   }
 

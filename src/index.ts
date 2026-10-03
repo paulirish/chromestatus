@@ -75,22 +75,22 @@ export class ChromeStatusClient {
    * Fails fast if underlying offline dataset layers are compromised or absent.
    */
   static async create(): Promise<ChromeStatusClient> {
-    const liteUrl = new URL('../data/lite.json', import.meta.url);
+    const basicUrl = new URL('../data/basic.json', import.meta.url);
     const otUrl = new URL('../data/active-ot-index.json', import.meta.url);
-    const flagUrl = new URL('../data/experimental-flag-index.json', import.meta.url);
+    const flagUrl = new URL('../data/flag-index.json', import.meta.url);
     const extrasUrl = new URL('../data/web-feature-extras.json', import.meta.url);
 
     // Concurrent hydration pipeline without swallowing operational file loading/parsing anomalies
-    const [liteText, otText, flagText, extrasText] = await Promise.all([
-      fs.readFile(liteUrl, 'utf8'),
+    const [basicText, otText, flagText, extrasText] = await Promise.all([
+      fs.readFile(basicUrl, 'utf8'),
       fs.readFile(otUrl, 'utf8'),
       fs.readFile(flagUrl, 'utf8').catch(() => '[]'), // gracefully initialize empty array if flag index cache is un-built
       fs.readFile(extrasUrl, 'utf8')
     ]);
 
-    const parsedFeatures: unknown = JSON.parse(liteText);
+    const parsedFeatures: unknown = JSON.parse(basicText);
     if (!Array.isArray(parsedFeatures)) {
-      throw new Error("Client initialization failed: data/lite.json is malformed.");
+      throw new Error("Client initialization failed: data/basic.json is malformed.");
     }
 
     const parsedOts: unknown = JSON.parse(otText);
@@ -243,7 +243,7 @@ export class ChromeStatusClient {
 
   /**
    * Returns the complete, un-truncated array of all authentic active Origin Trial feature records.
-   * Guarantees zero accounting loss for highly specific experimental capabilities lacking mapped string symbols.
+   * Guarantees zero accounting loss for highly specific experimental capabilities lacking mapped web feature IDs.
    */
   getActiveOriginTrials(): ReadonlyArray<ChromeStatusFeatureBasic> {
     const results: ChromeStatusFeatureBasic[] = [];

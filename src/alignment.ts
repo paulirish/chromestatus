@@ -2,10 +2,10 @@ import { features as webFeatures } from 'web-features';
 import type { ChromeStatusFeatureBasic } from './types.ts';
 
 export interface AlignmentReport {
-  orphans: { featureId: number; featureName: string; staleSymbol: string }[];
-  redirects: { featureId: number; featureName: string; fromSymbol: string; kind: 'moved' | 'split'; target: string | string[] }[];
-  milestoneDrift: { featureId: number; featureName: string; symbol: string; csMilestone: string; wfMilestone: string }[];
-  collisions: { symbol: string; featureIds: number[]; featureNames: string[] }[];
+  orphans: { featureId: number; featureName: string; webFeatureId: string }[];
+  redirects: { featureId: number; featureName: string; fromWebFeatureId: string; kind: 'moved' | 'split'; target: string | string[] }[];
+  milestoneDrift: { featureId: number; featureName: string; webFeatureId: string; csMilestone: string; wfMilestone: string }[];
+  collisions: { webFeatureId: string; featureIds: number[]; featureNames: string[] }[];
 }
 
 export class AlignmentAuditor {
@@ -36,7 +36,7 @@ export class AlignmentAuditor {
         report.orphans.push({
           featureId: feature.id,
           featureName: feature.name,
-          staleSymbol: webFeatureId
+          webFeatureId
         });
         continue;
       }
@@ -48,7 +48,7 @@ export class AlignmentAuditor {
         report.redirects.push({
           featureId: feature.id,
           featureName: feature.name,
-          fromSymbol: webFeatureId,
+          fromWebFeatureId: webFeatureId,
           kind: 'moved',
           target: webData.redirect_target
         });
@@ -56,7 +56,7 @@ export class AlignmentAuditor {
         report.redirects.push({
           featureId: feature.id,
           featureName: feature.name,
-          fromSymbol: webFeatureId,
+          fromWebFeatureId: webFeatureId,
           kind: 'split',
           target: webData.redirect_targets
         });
@@ -74,7 +74,7 @@ export class AlignmentAuditor {
             report.milestoneDrift.push({
               featureId: feature.id,
               featureName: feature.name,
-              symbol: webFeatureId,
+              webFeatureId,
               csMilestone: `M${csM}`,
               wfMilestone: `M${wfM}`
             });
@@ -87,16 +87,16 @@ export class AlignmentAuditor {
     for (const [webFeatureId, list] of webFeatureIdGroupings) {
       if (list.length > 1) {
         report.collisions.push({
-          symbol: webFeatureId,
+          webFeatureId,
           featureIds: list.map(f => f.id),
           featureNames: list.map(f => f.name)
         });
       }
     }
 
-    report.orphans.sort((a, b) => a.staleSymbol.localeCompare(b.staleSymbol));
-    report.redirects.sort((a, b) => a.fromSymbol.localeCompare(b.fromSymbol));
-    report.milestoneDrift.sort((a, b) => a.symbol.localeCompare(b.symbol));
+    report.orphans.sort((a, b) => a.webFeatureId.localeCompare(b.webFeatureId));
+    report.redirects.sort((a, b) => a.fromWebFeatureId.localeCompare(b.fromWebFeatureId));
+    report.milestoneDrift.sort((a, b) => a.webFeatureId.localeCompare(b.webFeatureId));
     report.collisions.sort((a, b) => b.featureIds.length - a.featureIds.length);
 
     return report;

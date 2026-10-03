@@ -6,7 +6,7 @@ import { features as webFeatures } from 'web-features';
 export interface ConformanceRecord {
   id: number;
   name: string;
-  symbol: string;
+  webFeatureId: string;
   csMilestone: number;
   wfMilestone: string;
   collector: string;
@@ -99,7 +99,7 @@ export class ConformanceAuditor {
             const recordBase = {
               id: data.id,
               name: data.name,
-              symbol: webFeatureId,
+              webFeatureId,
               csMilestone,
               wfMilestone: wfMilestone ? `M${wfMilestone}` : 'unsupported',
             };

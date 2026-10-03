@@ -12,7 +12,7 @@ Bundling a monolithic 55MB JSON payload (`features-verbose.json`) into client-si
 
 ```mermaid
 graph TD
-    Client[Consumer Application] -->|1. Sync Init| Lite[@chromestatus/data/lite.json <br> ~8.9MB Flat Array]
+    Client[Consumer Application] -->|1. Sync Init| Basic[@chromestatus/data/basic.json <br> ~8.9MB Flat Array]
     Client -->|2. Async Query| Hydration[catalog.getFeatureVerbose 'canvas']
     Hydration -->|Dynamic ESM Import| VerboseFile[@chromestatus/data/features/5172548013916160.json <br> ~20KB Granular Stage Data]
 ```
@@ -20,7 +20,7 @@ graph TD
 ### Packaging & Splitting Mechanics
 At build/publish time, the source data is processed using native `Object.groupBy()` into two distinct layers exposed via `package.json` subpath exports:
 
-1. **Primary Entrypoint (`@chromestatus/data/lite`)**:
+1. **Primary Entrypoint (`@chromestatus/data/basic`)**:
    * Flattens basic features into an optimized ~8.9MB array containing core fields (`id`, `name`, `web_feature`, basic browser flags).
    * Powers immediate synchronous lookups and initial catalog construction.
 2. **Granular Feature Files (`@chromestatus/data/features/*`)**:
@@ -197,7 +197,7 @@ export class ChromeStatusCatalog {
    */
   static async initLite(): Promise<ChromeStatusCatalog> {
     // Leverages native module attributes/assertions
-    const module = await import('@chromestatus/data/lite.json', { with: { type: 'json' } });
+    const module = await import('@chromestatus/data/basic.json', { with: { type: 'json' } });
     return new ChromeStatusCatalog(module.default);
   }
 

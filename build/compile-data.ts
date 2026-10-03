@@ -144,9 +144,9 @@ async function main() {
     JSON.stringify(activeOtIds)
   );
 
-  console.log(`Writing ${flagIds.length} flag index IDs to data/experimental-flag-index.json...`);
+  console.log(`Writing ${flagIds.length} flag index IDs to data/flag-index.json...`);
   await fs.writeFile(
-    path.join(dataDir, 'experimental-flag-index.json'),
+    path.join(dataDir, 'flag-index.json'),
     JSON.stringify(flagIds)
   );
 
@@ -242,9 +242,9 @@ async function main() {
     throw new Error(`Integrity validation failed: Processed basic feature flat record array count (${cleanBasic.length}) does not perfectly equal reported catalog total (${totalCount}). Base list output is partial or corrupted.`);
   }
 
-  console.log(`Writing ${cleanBasic.length} basic feature records to data/lite.json...`);
+  console.log(`Writing ${cleanBasic.length} basic feature records to data/basic.json...`);
   await fs.writeFile(
-    path.join(dataDir, 'lite.json'),
+    path.join(dataDir, 'basic.json'),
     JSON.stringify(cleanBasic, null, 2)
   );
 

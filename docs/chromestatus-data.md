@@ -66,6 +66,6 @@ graph TD
     DataDir -->|Dynamic import()| Hydrate[catalog.getFeatureVerbose id <br> Zero-Footprint Lazy Resolution]
 ```
 
-1. **Zero-Bloat Bundling**: The library packages flat records as `data/lite.json`. Consumers construct initial collection search index sets synchronously without bundling unused JSON data.
+1. **Zero-Bloat Bundling**: The library packages flat records as `data/basic.json`. Consumers construct initial collection search index sets synchronously without bundling unused JSON data.
 2. **Lazy Hydration**: When granular lifecycle history or stage approval structures are required, the class instances load verbose features dynamically from individual feature files (`data/features/<id>.json`).
 3. **Pre-Compiled OT Maps**: Extracted Origin Trial arrays (`data/active-ot-index.json`) evaluate initial signal gating requests in sub-millisecond execution loops without instantiating deep domain wrappers.

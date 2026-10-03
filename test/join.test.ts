@@ -31,8 +31,8 @@ test('WebFeature Join Fidelity - String identifiers map perfectly to web-feature
 test('WebFeature Population Metrics - Audits catalog string identifier presence and package mapping validity', async () => {
   let features: ChromeStatusFeatureBasic[] = [];
   try {
-    const litePath = path.resolve(process.cwd(), 'data', 'lite.json');
-    const text = await fs.readFile(litePath, 'utf8');
+    const basicPath = path.resolve(process.cwd(), 'data', 'basic.json');
+    const text = await fs.readFile(basicPath, 'utf8');
     features = JSON.parse(text);
   } catch {
     // Skip subtest execution gracefully if compiled snapshot layer is unpopulated locally

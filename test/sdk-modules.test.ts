@@ -287,17 +287,17 @@ test('Alignment Auditor - Diagnostics', () => {
     collisions: report.collisions.map(({ featureIds, ...rest }) => rest),
   }, {
     orphans: [
-      { featureName: "Orphan Feature", staleSymbol: "non-existent-symbol" },
+      { featureName: "Orphan Feature", webFeatureId: "non-existent-symbol" },
     ],
     redirects: [
-      { featureName: "Moved Feature", fromSymbol: "display-grid-lanes", kind: "moved", target: "grid-lanes" },
-      { featureName: "Split Feature", fromSymbol: "single-color-gradients", kind: "split", target: ["gradients", "conic-gradients"] },
+      { featureName: "Moved Feature", fromWebFeatureId: "display-grid-lanes", kind: "moved", target: "grid-lanes" },
+      { featureName: "Split Feature", fromWebFeatureId: "single-color-gradients", kind: "split", target: ["gradients", "conic-gradients"] },
     ],
     milestoneDrift: [
-      { featureName: "Drifting Feature", symbol: "grid", csMilestone: "M50", wfMilestone: "M57" },
+      { featureName: "Drifting Feature", webFeatureId: "grid", csMilestone: "M50", wfMilestone: "M57" },
     ],
     collisions: [
-      { symbol: "flexbox", featureNames: ["Collision Feature 1", "Collision Feature 2"] },
+      { webFeatureId: "flexbox", featureNames: ["Collision Feature 1", "Collision Feature 2"] },
     ],
   });
 });

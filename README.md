@@ -25,12 +25,12 @@ pnpm add @paulirish/chromestatus
 
 The live API's single feature lookup payload is ~55MB across all active records. To prevent bundle bloat in consumer client applications, this package splits the database at compile time into isolated layers:
 
-1. **Base Index (`data/lite.json`, ~8.9MB)**:
+1. **Base Index (`data/basic.json`, ~8.9MB)**:
    * Basic features providing immediate synchronous collection scanning, search filtering, and index setup.
 2. **Verbose Features (`data/features/<id>.json`, ~20KB each)**:
    * Individual standalone files containing full verbose features (full nested `stages` array, extensive web URLs, and customized metrics). Keyed natively on persistent immutable database keys to maximize OS compatibility while remaining fully abstracted from user access layers.
    * Imported dynamically at runtime via `fs.readFile` to ensure absolute tree-shaking efficiency.
-3. **Gating Maps (`data/active-ot-index.json` & `data/experimental-flag-index.json`)**:
+3. **Gating Maps (`data/active-ot-index.json` & `data/flag-index.json`)**:
    * Pre-extracted numeric arrays containing only active Origin Trial or flag IDs for instant status verification without initializing heavy models.
 
 ---
@@ -140,7 +140,7 @@ To support developer workflows, the project provides several scripts divided int
 #### 1. Data Compilation Pipelines
 *   `pnpm run fetch`: Complete pipeline to sync the codebase: runs `download` then `compile`.
 *   `pnpm run download`: Downloads raw REST endpoints from ChromeStatus.com and collector configurations into `data/raw/` caching layers.
-*   `pnpm run compile`: Processes cached raw archives, runs verification checks, maps overrides, and writes the optimized database layers (`data/lite.json`, active index files, individual feature files, and `data/web-feature-extras.json`). web-features IDs marked `moved` are rewritten to their redirect target.
+*   `pnpm run compile`: Processes cached raw archives, runs verification checks, maps overrides, and writes the optimized database layers (`data/basic.json`, active index files, individual feature files, and `data/web-feature-extras.json`). web-features IDs marked `moved` are rewritten to their redirect target.
 
 #### 2. Conformance & Alignment Audits
 *   `pnpm run audit:conformance`: Compares ChromeStatus, static BCD support, and `mdn-bcd-results` collector files to generate a comprehensive lag and stale metadata report. Saves the report to [**`bcd_conformance_report.md`**](file:///Users/paulirish/code/chromestatus/bcd_conformance_report.md).
@@ -149,8 +149,8 @@ To support developer workflows, the project provides several scripts divided int
 *   `pnpm run audit:alignment`: Runs diagnostics against ChromeStatus basic features mapping to the static `web-features` package catalog to report schema drift, redirects, collisions, or orphan web feature IDs.
 
 #### 3. Diagnostic & Inventory Printers
-*   `pnpm run audit:ot-symbols`: Prints all active Origin Trial web feature IDs based on pre-compiled active maps.
-*   `pnpm run audit:flag-symbols`: Prints all ChromeStatus features currently gated by active browser flags.
+*   `pnpm run audit:ot-web-feature-ids`: Prints all active Origin Trial web feature IDs based on pre-compiled active maps.
+*   `pnpm run audit:flag-web-feature-ids`: Prints all ChromeStatus features currently gated by active browser flags.
 *   `pnpm run audit:gated`: Prints a detailed inventory of all gated features (Origin Trials or flags) and flags suspicious old items that have already shipped.
 *   `pnpm run audit:mappings`: Prints a markdown mapping table connecting web feature IDs to ChromeStatus feature names and spec links.
 *   `pnpm run audit:unmapped-ots`: Identifies any active Origin Trials in ChromeStatus that are lacking mapped web feature IDs.

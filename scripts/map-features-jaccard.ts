@@ -17,12 +17,12 @@ export interface VerifiedFeatureMapping {
 }
 
 async function main() {
-  const dataPath = path.resolve(process.cwd(), 'data', 'lite.json');
+  const dataPath = path.resolve(process.cwd(), 'data', 'basic.json');
   let featuresText = '';
   try {
     featuresText = await fs.readFile(dataPath, 'utf8');
   } catch (err) {
-    console.error("Error: Compiled snapshot data/lite.json not found.", err);
+    console.error("Error: Compiled snapshot data/basic.json not found.", err);
     process.exit(1);
   }
 
