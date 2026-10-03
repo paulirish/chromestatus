@@ -40,6 +40,10 @@ export function resolveMovedWebFeatureId(id: string, catalog: WebFeaturesCatalog
 /**
  * The mapping for one ChromeStatus feature: its override if one exists, otherwise its `web_feature` value,
  * with placeholders dropped, IDs lowercased, and moved IDs rewritten to their current ID.
+ *
+ * Values web-features doesn't know pass through unchanged. ChromeStatus has some, e.g. `4217` (a web-features
+ * GitHub issue number) on "JS Self-Profiling Markers". They're kept so the bad data stays visible;
+ * `pnpm run audit:chromestatus-edits` lists them as invalid IDs to fix upstream.
  */
 export function resolveWebFeatureIds(
   feature: { name: string; web_feature?: string | null },
@@ -70,7 +74,6 @@ export function resolveBaselineYear(
 /** Raw verbose ChromeStatus feature fields that gating reads. */
 export interface GatingInput {
   id: number;
-  is_released?: boolean;
   unlisted?: boolean;
   intent_stage?: string;
   browsers?: { chrome?: { flag?: boolean; origintrial?: boolean; status?: { text?: string } } };
@@ -117,7 +120,9 @@ function isListedByOtApi(f: GatingInput, ctx: OriginTrialContext): boolean {
  * and an open-ended stage counts only while the feature still reads as in development or in trial.
  */
 function looksLikeActiveTrial(f: GatingInput, stableMilestone: number): boolean {
-  if (f.is_released === true || isShippedOrAbandoned(f)) return false;
+  // Not `is_released`: ChromeStatus sets it for any release-channel status, including "Origin trial" and
+  // "Behind a flag" (RELEASE_IMPL_STATES in chromium-dashboard internals/core_enums.py).
+  if (isShippedOrAbandoned(f)) return false;
   const status = statusText(f);
   const stages = originTrialStages(f);
   const inWindow = stages.some(s => {

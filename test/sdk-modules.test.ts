@@ -13,7 +13,6 @@ import os from 'node:os';
 test('Centralized Mapping Overrides', () => {
   assert.ok(CUSTOM_WEB_FEATURE_OVERRIDES);
   assert.equal(CUSTOM_WEB_FEATURE_OVERRIDES['HTML-in-canvas'], 'canvas-html');
-  assert.equal(CUSTOM_WEB_FEATURE_OVERRIDES['Proofreader API'], 'languagemodel');
 });
 
 test('Tokenizer and Stop Word Filtering', () => {

@@ -13,7 +13,6 @@ export const CUSTOM_WEB_FEATURE_OVERRIDES: Readonly<Record<string, string>> = {
   "HTML-in-canvas": "canvas-html",
   "Digital Credentials API (issuance support)": "digital-credentials",
   "Prerendering cross-origin iframes": "speculation-rules",
-  "Proofreader API": "languagemodel",
   // ChromeStatus has only `document-modelcontext`. The one WebMCP entry (flag/trial "WebMCP") also ships the
   // declarative form attributes, which web-features tracks separately, and Chromium counts them separately
   // (kDocumentModelcontext, kDeclarativeWebmcp).
