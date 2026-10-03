@@ -11,14 +11,14 @@ This package joins three datasets that each use the word "feature" at a differen
 One entry in the ChromeStatus.com catalog: a Chromium launch, change, deprecation, or removal, often narrower than a web feature (several ChromeStatus features can map to one web feature). In this package's API, unqualified "feature" means a ChromeStatus feature.
 Its numeric `id` is the **ChromeStatus feature ID**. Not to be confused with a web-features "feature ID", which is a string slug (see [AGENTS.md](./AGENTS.md) on keeping numeric IDs out of human-facing surfaces).
 
-* _Reference_: `src/types.ts#ChromeStatusFeatureStub`, `src/types.ts#ChromeStatusFeatureDetailed`
+* _Reference_: `src/types.ts#ChromeStatusFeatureBasic`, `src/types.ts#ChromeStatusFeatureVerbose`
 * _AKA_: FeatureEntry — the ChromeStatus datastore model
 
 ### Web feature
 
 A cross-browser web platform capability defined by the [web-features](https://github.com/web-platform-dx/web-features) project (e.g. `anchor-positioning`), identified by a lowercase hyphenated slug. A ChromeStatus feature points to one or more web features through its `web_feature` field, which can hold a comma-separated list.
 
-* _Reference_: `src/types.ts#ChromeStatusFeatureStub.web_feature`
+* _Reference_: `src/types.ts#ChromeStatusFeatureBasic.web_feature`
 
 ### Web feature ID
 
@@ -32,14 +32,14 @@ The lowercase hyphenated slug that identifies a web feature (e.g. `canvas-html`)
 
 A dotted path in [@mdn/browser-compat-data](https://github.com/mdn/browser-compat-data) (e.g. `api.CSSPositionTryDescriptors`), the finest granularity in this project. A web feature lists the BCD keys it covers. BCD keys are what collector tests check. BCD's own docs call this a "feature identifier", which clashes with the web-features term, so this project uses "BCD key" as [web-features-mappings](https://github.com/web-platform-dx/web-features-mappings) does.
 
-* _Reference_: `src/empirical-index.ts#EmpiricalSupportIndex.getSupport`
+* _Reference_: `src/collector-results-index.ts#CollectorResultsIndex.getSupport`
 * _AKA_: compat feature — used by web-features (`compat_features`); feature identifier — used by BCD
 
 ### Collector results
 
 Per-BCD-key pass/fail results from running [mdn-bcd-collector](https://github.com/openwebdocs/mdn-bcd-collector) tests against real Chrome releases, read from the `mdn-bcd-results` submodule. This project uses only Chrome desktop on Windows runs. Not to be confused with BCD itself, which is curated documentation; collector results are observed behavior and act as ground truth in the conformance audit.
 
-* _Reference_: `src/empirical-index.ts#EmpiricalSupportIndex`
+* _Reference_: `src/collector-results-index.ts#CollectorResultsIndex`
 * _Avoid_: empirical — superseded in reports by commit 5b80fb1; rejected by the user for code too
 
 ### Feature name
@@ -52,7 +52,7 @@ The human-readable title of a ChromeStatus feature (`name`), used as the semanti
 
 The shallow representation of a ChromeStatus feature: core identity, status, and browser fields, with no full stage records. All basic features are bundled together and loaded synchronously. Not to be confused with a verbose feature, which adds full stages and extended fields and is loaded on demand.
 
-* _Reference_: `src/types.ts#ChromeStatusFeatureStub`, `data/lite.json`
+* _Reference_: `src/types.ts#ChromeStatusFeatureBasic`, `data/basic.json`
 * _AKA_: basic — used by ChromeStatus (`feature_entry_to_json_basic`)
 * _Avoid_: stub, lite, Option 2 — rejected in favor of the upstream term
 
@@ -60,7 +60,7 @@ The shallow representation of a ChromeStatus feature: core identity, status, and
 
 The full representation of one ChromeStatus feature, including its stages, as returned by the ChromeStatus single-feature API. It is stored as one file per feature and loaded on demand.
 
-* _Reference_: `src/types.ts#ChromeStatusFeatureDetailed`, `data/features/`
+* _Reference_: `src/types.ts#ChromeStatusFeatureVerbose`, `data/features/`
 * _AKA_: verbose — used by ChromeStatus (`feature_entry_to_json_verbose`, `VerboseFeatureDict`)
 * _Avoid_: detailed, chunk, Option 1 — rejected in favor of the upstream term
 
@@ -88,7 +88,7 @@ A not-yet-shipped ChromeStatus feature that can only be enabled through an Activ
 
 A browser runtime switch (such as an entry in `chrome://flags` or a command-line switch) that enables an unshipped feature. A feature that requires one is "behind a flag". This covers any flag, not only `--enable-experimental-web-platform-features`. Not to be confused with the ChromeStatus "Intent to Experiment" stage, which is an Origin Trial process step.
 
-* _Reference_: `src/compile-helpers.ts#evaluateBehindFlag`, `data/experimental-flag-index.json`
+* _Reference_: `src/compile-helpers.ts#evaluateBehindFlag`, `data/flag-index.json`
 * _AKA_: flags — used by BCD support statements
 * _Avoid_: experimental flag — implies only the experimental web platform features switch, and collides with "Intent to Experiment"
 
