@@ -1,4 +1,5 @@
 import fs from 'node:fs/promises';
+import type { WebFeatureExtras } from './types.ts';
 
 /**
  * Typed loader for web-features-mappings (https://github.com/web-platform-dx/web-features-mappings).
@@ -60,4 +61,27 @@ export function parseWebFeatureValue(raw: unknown): string[] {
   const trimmed = raw.trim();
   if (!trimmed || trimmed === 'Missing feature' || trimmed.toLowerCase() === 'none') return [];
   return trimmed.split(',').map(s => s.trim()).filter(Boolean);
+}
+
+/** Collects upstream extras for the given web-features IDs, keyed by ID. IDs without any upstream data are omitted. */
+export function buildWebFeatureExtras(ids: Iterable<string>, upstream: UpstreamMappings): Record<string, WebFeatureExtras> {
+  const out: Record<string, WebFeatureExtras> = {};
+  const get = <T>(rec: Readonly<Record<string, T>>, id: string): T | undefined => (Object.hasOwn(rec, id) ? rec[id] : undefined);
+  for (const id of [...new Set(ids)].sort()) {
+    const extras: WebFeatureExtras = {};
+    const uc = get(upstream.useCounters, id);
+    if (uc) extras.useCounter = { percentageOfPageLoad: uc.percentageOfPageLoad, url: uc.url };
+    const sp = get(upstream.standardsPositions, id);
+    if (sp?.length) extras.standardsPositions = sp.map(p => ({ vendor: p.vendor, position: p.position, url: p.url }));
+    const wpt = get(upstream.wpt, id);
+    if (wpt) extras.wpt = { url: wpt.url };
+    const interop = get(upstream.interop, id);
+    if (interop?.length) extras.interop = interop.map(i => ({ year: i.year, label: i.label, url: i.url }));
+    const mdn = get(upstream.mdnDocs, id);
+    if (mdn?.length) extras.mdnDocs = mdn.map(d => ({ title: d.title, url: d.url }));
+    const ds = get(upstream.developerSignals, id);
+    if (ds) extras.developerSignals = { url: ds.url, votes: ds.votes };
+    if (Object.keys(extras).length) out[id] = extras;
+  }
+  return out;
 }

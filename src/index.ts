@@ -1,5 +1,5 @@
 import fs from 'node:fs/promises';
-import type { ChromeStatusFeatureStub, ChromeStatusFeatureDetailed } from './types.ts';
+import type { ChromeStatusFeatureStub, ChromeStatusFeatureDetailed, WebFeatureExtras } from './types.ts';
 import { CUSTOM_WEB_FEATURE_OVERRIDES } from './overrides.ts';
 import { tokenize } from './text-analyzer.ts';
 
@@ -22,12 +22,15 @@ export class ChromeStatusClient {
   private searchIndex: SearchIndexRecord[];
   private originTrialIds: Set<number>;
   private experimentalFlagIds: Set<number>;
+  private webFeatureExtras: Readonly<Record<string, Readonly<WebFeatureExtras>>>;
 
   constructor(
     stubs: ReadonlyArray<ChromeStatusFeatureStub>, 
     activeOriginTrialIds: ReadonlyArray<number> = [],
-    experimentalFlagIds: ReadonlyArray<number> = []
+    experimentalFlagIds: ReadonlyArray<number> = [],
+    webFeatureExtras: Readonly<Record<string, WebFeatureExtras>> = {}
   ) {
+    this.webFeatureExtras = Object.freeze({ ...webFeatureExtras });
     this.stubs = Object.freeze(stubs.map(stub => {
       let web_feature = stub.web_feature;
       if (stub.name && Object.hasOwn(CUSTOM_WEB_FEATURE_OVERRIDES, stub.name)) {
@@ -75,12 +78,14 @@ export class ChromeStatusClient {
     const liteUrl = new URL('../data/lite.json', import.meta.url);
     const otUrl = new URL('../data/active-ot-index.json', import.meta.url);
     const flagUrl = new URL('../data/experimental-flag-index.json', import.meta.url);
+    const extrasUrl = new URL('../data/web-feature-extras.json', import.meta.url);
 
     // Concurrent hydration pipeline without swallowing operational file loading/parsing anomalies
-    const [liteText, otText, flagText] = await Promise.all([
+    const [liteText, otText, flagText, extrasText] = await Promise.all([
       fs.readFile(liteUrl, 'utf8'),
       fs.readFile(otUrl, 'utf8'),
-      fs.readFile(flagUrl, 'utf8').catch(() => '[]') // gracefully initialize empty array if flag index cache is un-built
+      fs.readFile(flagUrl, 'utf8').catch(() => '[]'), // gracefully initialize empty array if flag index cache is un-built
+      fs.readFile(extrasUrl, 'utf8')
     ]);
 
     const parsedStubs: unknown = JSON.parse(liteText);
@@ -96,10 +101,16 @@ export class ChromeStatusClient {
     const parsedFlags: unknown = JSON.parse(flagText);
     const flagArray = Array.isArray(parsedFlags) ? parsedFlags : [];
 
+    const parsedExtras: unknown = JSON.parse(extrasText);
+    if (typeof parsedExtras !== 'object' || parsedExtras === null || Array.isArray(parsedExtras)) {
+      throw new Error("Client initialization failed: data/web-feature-extras.json is malformed.");
+    }
+
     return new ChromeStatusClient(
       parsedStubs as ReadonlyArray<ChromeStatusFeatureStub>, 
       parsedOts as ReadonlyArray<number>,
-      flagArray as ReadonlyArray<number>
+      flagArray as ReadonlyArray<number>,
+      parsedExtras as Readonly<Record<string, WebFeatureExtras>>
     );
   }
 
@@ -108,6 +119,28 @@ export class ChromeStatusClient {
    */
   get features(): ReadonlyArray<ChromeStatusFeatureStub> {
     return this.stubs;
+  }
+
+  /**
+   * Returns web-features-mappings data (use counter, standards positions, WPT, interop, MDN docs,
+   * developer signals) for a web-features ID, or undefined when upstream has none.
+   */
+  getWebFeatureExtras(webFeatureId: string): Readonly<WebFeatureExtras> | undefined {
+    const id = webFeatureId.trim().toLowerCase();
+    return Object.hasOwn(this.webFeatureExtras, id) ? this.webFeatureExtras[id] : undefined;
+  }
+
+  /**
+   * Returns extras for every web-features ID mapped to a ChromeStatus feature, keyed by web-features ID.
+   */
+  getFeatureExtras(query: string | number): Readonly<Record<string, Readonly<WebFeatureExtras>>> {
+    const stub = this.findFeature(query);
+    const out: Record<string, Readonly<WebFeatureExtras>> = {};
+    for (const id of stub?.web_feature?.split(',').map(s => s.trim()).filter(Boolean) ?? []) {
+      const extras = this.getWebFeatureExtras(id);
+      if (extras) out[id] = extras;
+    }
+    return out;
   }
 
   /**

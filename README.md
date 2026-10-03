@@ -115,6 +115,10 @@ async function run() {
   // Natively supports passing descriptive feature title strings to abstract numeric database IDs entirely
   const verboseMetadata = await client.getFeatureDetailed('HTML-in-canvas');
   console.log(verboseMetadata?.stages);
+
+  // web-features-mappings extras: use counter, standards positions, WPT, interop, MDN docs, developer signals
+  const extras = client.getWebFeatureExtras('view-transitions');
+  console.log(extras?.useCounter?.percentageOfPageLoad, extras?.standardsPositions);
 }
 ```
 
@@ -136,10 +140,12 @@ To support developer workflows, the project provides several scripts divided int
 #### 1. Data Compilation Pipelines
 *   `pnpm run fetch`: Complete pipeline to sync the codebase: runs `download` then `compile`.
 *   `pnpm run download`: Downloads raw REST endpoints from ChromeStatus.com and collector configurations into `data/raw/` caching layers.
-*   `pnpm run compile`: Processes cached raw archives, runs verification checks, maps overrides, and writes the optimized database layers (`data/lite.json`, active index files, and individual feature files).
+*   `pnpm run compile`: Processes cached raw archives, runs verification checks, maps overrides, and writes the optimized database layers (`data/lite.json`, active index files, individual feature files, and `data/web-feature-extras.json`). web-features IDs marked `moved` are rewritten to their redirect target.
 
 #### 2. Conformance & Alignment Audits
 *   `pnpm run audit:conformance`: Compares ChromeStatus, static BCD support, and empirical `mdn-bcd-results` collector files to generate a comprehensive lag and stale metadata report. Saves the report to [**`bcd_conformance_report.md`**](file:///Users/paulirish/code/chromestatus/bcd_conformance_report.md).
+*   `pnpm run audit:overrides`: Checks each entry in [`src/overrides.ts`](src/overrides.ts) against raw ChromeStatus data and [web-features-mappings](https://github.com/web-platform-dx/web-features-mappings). Exits non-zero when an override is redundant, broken (points to a moved/unknown ID), or orphaned (feature renamed).
+*   `pnpm run audit:chromestatus-edits`: Writes `data/chromestatus-edit-suggestions.md`, a list of ChromeStatus `web_feature` fixes with evidence: overridden values, invalid or moved IDs, and candidate IDs for unmapped features from shared crbugs and MDN doc links.
 *   `pnpm run audit:alignment`: Runs diagnostics against ChromeStatus stubs mapping to the static `web-features` package catalog to report schema drift, redirects, collisions, or orphan symbols.
 
 #### 3. Diagnostic & Inventory Printers

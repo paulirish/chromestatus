@@ -142,6 +142,21 @@ export interface ChromeStatusFeatureDetailed extends ChromeStatusFeatureStub {
   };
 }
 
+/**
+ * Supplementary data for a web-features ID, compiled from web-features-mappings
+ * (https://github.com/web-platform-dx/web-features-mappings). Each field is present only when upstream has data.
+ */
+export interface WebFeatureExtras {
+  /** Chrome use counter: share of page loads using the feature, and its chromestatus.com metrics page. */
+  useCounter?: { percentageOfPageLoad: number; url: string };
+  standardsPositions?: ReadonlyArray<{ vendor: string; position: string; url: string }>;
+  /** wpt.fyi results filtered to this feature. */
+  wpt?: { url: string };
+  interop?: ReadonlyArray<{ year: number; label: string; url: string }>;
+  mdnDocs?: ReadonlyArray<{ title: string; url: string }>;
+  developerSignals?: { url: string; votes: number };
+}
+
 /** Query builder field inputs */
 export interface FeatureQueryFields {
   stageType?: StageType;

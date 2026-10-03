@@ -131,3 +131,15 @@ test('live overrides are all still needed', async (t) => {
     'Remove or fix these overrides in src/overrides.ts (see `pnpm run audit:overrides`)'
   );
 });
+
+test('buildWebFeatureExtras keeps only published fields and omits empty IDs', async () => {
+  const { buildWebFeatureExtras } = await import('../src/upstream-mappings.ts');
+  const extras = buildWebFeatureExtras(['grid-lanes', 'canvas', 'grid-lanes'], {
+    ...upstream,
+    useCounters: { 'grid-lanes': { percentageOfPageLoad: 0.5, url: 'https://chromestatus.com/metrics/webfeature/timeline/popularity/1' } },
+    standardsPositions: { 'grid-lanes': [{ vendor: 'mozilla', position: 'positive', url: 'https://github.com/mozilla/standards-positions/issues/1', concerns: [] } as any] },
+  });
+  assert.deepEqual(Object.keys(extras), ['grid-lanes']);
+  assert.deepEqual(extras['grid-lanes'].standardsPositions, [{ vendor: 'mozilla', position: 'positive', url: 'https://github.com/mozilla/standards-positions/issues/1' }]);
+  assert.equal(extras['grid-lanes'].useCounter?.percentageOfPageLoad, 0.5);
+});

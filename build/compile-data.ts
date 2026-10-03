@@ -2,6 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { features as webFeatures } from 'web-features';
 import { CUSTOM_WEB_FEATURE_OVERRIDES } from '../src/overrides.ts';
+import { loadUpstreamMappings, buildWebFeatureExtras, parseWebFeatureValue } from '../src/upstream-mappings.ts';
 import {
   resolveWebFeatureBaselineYear,
   evaluateActiveOriginTrial,
@@ -192,6 +193,15 @@ async function main() {
   await fs.writeFile(
     path.join(dataDir, 'ot-mapping.json'),
     JSON.stringify(sortedOtMapping, null, 2)
+  );
+
+  console.log("Compiling web-features-mappings extras for referenced web-features IDs...");
+  const referencedIds = [...webFeatureMap.values()].flatMap(v => parseWebFeatureValue(v));
+  const extras = buildWebFeatureExtras(referencedIds, await loadUpstreamMappings());
+  console.log(`Writing extras for ${Object.keys(extras).length} web-features IDs to data/web-feature-extras.json...`);
+  await fs.writeFile(
+    path.join(dataDir, 'web-feature-extras.json'),
+    JSON.stringify(extras, null, 2)
   );
 
   console.log("\nProcessing Lite array data from cache...");

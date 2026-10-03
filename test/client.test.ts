@@ -144,3 +144,18 @@ test('ChromeStatusClient - Static Compilation Overrides Map Integration', async 
   assert.notEqual(webmcpOverride2, undefined, 'Must resolve proposed WebMCP feature record via new declarative-webmcp symbol');
   assert.equal(webmcpOverride2?.id, webmcpOverride?.id);
 });
+
+test('ChromeStatusClient - web-features-mappings extras', async () => {
+  const client = await ChromeStatusClient.create();
+  if (client.features.length === 0) return;
+
+  const vt = client.getWebFeatureExtras('view-transitions');
+  assert.ok(vt, 'view-transitions must have compiled extras');
+  assert.equal(typeof vt.useCounter?.percentageOfPageLoad, 'number');
+  assert.match(vt.useCounter?.url ?? '', /^https:\/\/chromestatus\.com\/metrics\//);
+  assert.match(vt.wpt?.url ?? '', /^https:\/\/wpt\.fyi\//);
+  assert.equal(client.getWebFeatureExtras('non-existent-fantasy-feature-id'), undefined);
+
+  const byFeature = client.getFeatureExtras('view-transitions');
+  assert.deepEqual(byFeature['view-transitions'], vt);
+});
