@@ -28,44 +28,46 @@ This document details the underlying API endpoints exposed by **ChromeStatus.com
 
 ## 2. Basic vs. Verbose Payload Comparison
 
-Comparative evaluation of the basic vs. verbose outputs reveals extreme differences in footprint and property depth across the **3,416 active features** in the catalog:
+Comparative evaluation of basic vs. verbose outputs reveals significant differences in footprint and property depth across the **3,566 features** in the catalog:
 
 | Metric | Verbose Features | Basic Features |
 | :--- | :--- | :--- |
 | **Source Endpoint** | `/api/v0/features?num=1000` (Iterated) | `/features.json` |
-| **Monolithic File Size** | **~55.0 MB** | **~8.9 MB** |
+| **Monolithic File Size** | **~61 MB** | **~9.5 MB** |
 | **Average Top-Level Keys** | **105 keys** | **22 keys** |
 | **Exclusive Keys** | **85 keys** | **2 keys** (`milestone`, `owners`) |
-| **Embedded `stages` Array** | **100% populated** (3,416 records) | **Stripped entirely** |
+| **Embedded `stages` Array** | **100% populated** (3,566 records) | **Stripped entirely** |
 | **Rich Text Retention** | Preserves `motivation`, `explainer_links`, `devrel_emails` | Stripped entirely |
 
-> **Note on Origin Trial Extensions:** In verbose payloads, Origin Trial stage entities (`stage_type === 150`) directly embed their subsequent trial extension stages inside an inline `extensions` array property.
+> **Note on Origin Trial Extensions:** In verbose payloads, Origin Trial stage entities (`stage_type === 150`, `250`, or `450`) embed subsequent trial extension stages in their `extensions` array property.
 
 ---
 
 ## 3. Ecosystem Linkage & Mapping Fidelity
 
-Feature records frequently populate a string identifier in the `web_feature` field to link external ecosystem specifications. 
+Feature records frequently populate a string identifier in the `web_feature` field to link external ecosystem specifications.
 
-Validation against the authoritative **`web-features`** NPM package demonstrates near-perfect mapping compatibility:
-* **Populated Scope**: 2,034 out of 3,416 records contain a populated `web_feature` string.
-* **Placeholders**: 101 records contain a literal placeholder string (`"Missing feature"`), leaving **1,933 legitimate web feature IDs**.
-* **Mapping Fidelity**: **1,923 out of 1,933 identifiers map directly to top-level exported keys in `web-features`** (e.g., `"canvas"`, `"webgpu"`, `"view-transitions"`), representing a **99.48% mapping accuracy**.
+Validation against the authoritative **`web-features`** npm package:
+* **Populated Scope**: 2,185 out of 3,566 records contain a `web_feature` string.
+* **Placeholders**: 143 records contain a literal placeholder string (`"Missing feature"`), leaving **2,042 valid web feature IDs**.
+* **Mapping Fidelity**: **2,021 out of 2,042 identifiers map directly to top-level keys in `web-features`** (e.g., `"canvas"`, `"webgpu"`, `"view-transitions"`), representing **98.97% direct mapping accuracy**.
 
 ---
 
 ## 4. Package Integration Architecture
 
-To bridge these API constraints without imposing massive data penalties on downstream consumers, the `@paulirish/chromestatus` library utilizes a **Hybrid Hydration** pipeline:
+To bridge these API constraints without imposing massive data penalties on downstream consumers, the `@paulirish/chromestatus` library splits the dataset:
 
 ```mermaid
 graph TD
-    API1[ChromeStatus API <br> Verbose Features] -->|build/download-raw.ts + build/compile-data.ts| DataDir[Local /data/ Layer]
-    API2[ChromeStatus API <br> Basic Features Array] -->|build/download-raw.ts + build/compile-data.ts| DataDir
-    DataDir -->|Synchronous Import| Basic[catalog.features <br> Instant In-Memory Indexing]
-    DataDir -->|Dynamic import()| Hydrate[catalog.getFeatureVerbose id <br> Zero-Footprint Lazy Resolution]
+    API1["ChromeStatus API <br> Verbose Features"] -->|build/download-raw.ts| RawVerbose["data/raw/features-verbose.json"]
+    API2["ChromeStatus API <br> Basic Features Array"] -->|build/download-raw.ts| RawBasic["data/raw/features-basic.json"]
+    RawVerbose -->|build/compile-data.ts| VerboseDir["data/features/<id>.json"]
+    RawBasic -->|build/compile-data.ts| BasicFile["data/basic.json"]
+    BasicFile -->|fs.readFile| Client["client.features <br> Basic feature catalog"]
+    VerboseDir -->|fs.readFile on demand| Hydrate["client.getFeatureVerbose(name) <br> Verbose record"]
 ```
 
-1. **Zero-Bloat Bundling**: The library packages flat records as `data/basic.json`. Consumers construct initial collection search index sets synchronously without bundling unused JSON data.
-2. **Lazy Hydration**: When granular lifecycle history or stage approval structures are required, the class instances load verbose features dynamically from individual feature files (`data/features/<id>.json`).
+1. **Flat Catalog**: The library packages flat records as `data/basic.json`. Consumers filter and search synchronously in memory without loading verbose feature payloads.
+2. **On-Demand Hydration**: When granular lifecycle history or stage approval structures are required, the client loads verbose records from individual feature files (`data/features/<id>.json`).
 3. **Compiled Fields**: Each basic and verbose feature carries `web_feature_ids`, `baseline_year`, and `gated_by` (Active Origin Trial or flag), computed once at compile time.
