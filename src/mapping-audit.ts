@@ -1,5 +1,7 @@
 import type { UpstreamMappings } from './upstream-mappings.ts';
 import { parseWebFeatureValue, resolveMovedWebFeatureId, type WebFeaturesCatalog } from './compile-helpers.ts';
+import { BROAD_WEB_FEATURE_IDS, isSpecMatch } from './spec-matcher.ts';
+import { tokenize } from './text-analyzer.ts';
 
 export type { WebFeaturesCatalog };
 
@@ -15,6 +17,8 @@ export interface RawFeatureLike {
   web_feature?: string | null;
   bug_url?: string | null;
   doc_links?: string[] | null;
+  spec_link?: string | null;
+  standards?: { spec?: string | null };
 }
 
 export type OverrideStatus =
@@ -120,7 +124,7 @@ export function auditOverrides(
   });
 }
 
-export type EditReason = 'override' | 'invalid-id' | 'moved-id' | 'split-id' | 'shared-bug' | 'mdn-docs';
+export type EditReason = 'override' | 'invalid-id' | 'moved-id' | 'split-id' | 'shared-bug' | 'mdn-docs' | 'spec-url' | 'name-match';
 
 export interface ChromeStatusEditSuggestion {
   featureName: string;
@@ -223,7 +227,35 @@ export function suggestChromeStatusEdits(
     }
   }
 
-  // 3. Unmapped features: candidate IDs from shared Chrome bugs and MDN docs.
+  // 3. Unmapped features: candidate IDs from the strongest available evidence.
+  const findCandidates = buildCandidateFinders(upstream, catalog);
+  const seenUnmapped = new Set<string>();
+  for (const f of features) {
+    const name = f.name.trim();
+    if (overridden.has(name) || seenUnmapped.has(name) || parseWebFeatureValue(f.web_feature).length) continue;
+    seenUnmapped.add(name);
+    const candidate = findCandidates(f);
+    if (candidate) {
+      suggestions.push({
+        featureName: name,
+        chromestatusUrl: chromestatusUrl(f.id),
+        currentValue: null,
+        suggestedValue: candidate.ids.join(','),
+        reason: candidate.reason,
+        evidence: candidate.evidence,
+      });
+    }
+  }
+
+  return suggestions;
+}
+
+interface Candidate { reason: EditReason; ids: string[]; evidence: string }
+
+const quoted = (ids: Iterable<string>) => [...ids].map(i => `"${i}"`).join(', ');
+
+/** Returns a function that finds candidate web feature IDs for an unmapped feature, trying evidence from strongest to weakest. */
+function buildCandidateFinders(upstream: UpstreamMappings, catalog: WebFeaturesCatalog): (f: RawFeatureLike) => Candidate | null {
   const bugIndex = new Map<string, Set<string>>();
   for (const [wfId, b] of Object.entries(upstream.bugs)) {
     for (const url of b.chrome ?? []) {
@@ -238,43 +270,49 @@ export function suggestChromeStatusEdits(
       if (key && isCurrentFeature(wfId, catalog)) addToIndex(mdnIndex, key, wfId);
     }
   }
-  const seenUnmapped = new Set<string>();
-  for (const f of features) {
-    const name = f.name.trim();
-    if (overridden.has(name) || seenUnmapped.has(name) || parseWebFeatureValue(f.web_feature).length) continue;
-    seenUnmapped.add(name);
+  const targets = Object.entries(catalog)
+    .filter(([id, e]) => e.kind === 'feature' && !BROAD_WEB_FEATURE_IDS.has(id) && id.length > 2)
+    .map(([id, e]) => ({ id, name: e.name ?? id, specs: [e.spec ?? []].flat(), nameTokens: tokenize(e.name ?? '') }));
 
+  const bySharedBug = (f: RawFeatureLike): Candidate | null => {
     const bug = crbugId(f.bug_url);
-    const bugIds = bug ? bugIndex.get(bug) : undefined;
-    if (bugIds?.size) {
-      suggestions.push({
-        featureName: name,
-        chromestatusUrl: chromestatusUrl(f.id),
-        currentValue: null,
-        suggestedValue: [...bugIds].join(','),
-        reason: 'shared-bug',
-        evidence: `crbug ${bug} is linked to ${[...bugIds].map(i => `"${i}"`).join(', ')} in web-features-mappings`,
-      });
-      continue;
-    }
-    const mdnIds = new Set<string>();
+    const ids = bug ? bugIndex.get(bug) : undefined;
+    return ids?.size ? { reason: 'shared-bug', ids: [...ids], evidence: `crbug ${bug} is linked to ${quoted(ids)} in web-features-mappings` } : null;
+  };
+
+  const byMdnDocs = (f: RawFeatureLike): Candidate | null => {
+    const ids = new Set<string>();
     const matchedDocs: string[] = [];
     for (const doc of f.doc_links ?? []) {
       const key = mdnKey(doc);
       const hits = key ? mdnIndex.get(key) : undefined;
-      if (hits?.size) { matchedDocs.push(doc); for (const h of hits) mdnIds.add(h); }
+      if (hits?.size) { matchedDocs.push(doc); for (const h of hits) ids.add(h); }
     }
-    if (mdnIds.size) {
-      suggestions.push({
-        featureName: name,
-        chromestatusUrl: chromestatusUrl(f.id),
-        currentValue: null,
-        suggestedValue: [...mdnIds].join(','),
-        reason: 'mdn-docs',
-        evidence: `doc link(s) ${matchedDocs.join(', ')} map to ${[...mdnIds].map(i => `"${i}"`).join(', ')}`,
-      });
-    }
-  }
+    return ids.size ? { reason: 'mdn-docs', ids: [...ids], evidence: `doc link(s) ${matchedDocs.join(', ')} map to ${quoted(ids)}` } : null;
+  };
 
-  return suggestions;
+  const bySpecUrl = (f: RawFeatureLike): Candidate | null => {
+    const specs = [...new Set([f.standards?.spec, f.spec_link].map(s => s?.trim()).filter(s => !!s))] as string[];
+    const ids = targets.filter(t => specs.some(s => t.specs.some(w => isSpecMatch(s, w)))).map(t => t.id);
+    // A spec listed by several web features is too broad to point at one.
+    if (ids.length !== 1) return null;
+    return { reason: 'spec-url', ids, evidence: `spec ${specs.join(', ')} is listed by ${quoted(ids)} in web-features` };
+  };
+
+  const byName = (f: RawFeatureLike): Candidate | null => {
+    const nameTokens = tokenize(f.name);
+    const best = targets
+      .filter(t => t.nameTokens.size >= 2 && [...t.nameTokens].every(x => nameTokens.has(x)))
+      .sort((a, b) => b.nameTokens.size - a.nameTokens.size)[0];
+    return best ? { reason: 'name-match', ids: [best.id], evidence: `every word of "${best.name}" appears in the feature name` } : null;
+  };
+
+  const finders = [bySharedBug, byMdnDocs, bySpecUrl, byName];
+  return f => {
+    for (const find of finders) {
+      const candidate = find(f);
+      if (candidate) return candidate;
+    }
+    return null;
+  };
 }

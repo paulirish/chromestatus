@@ -26,6 +26,9 @@ const catalog: WebFeaturesCatalog = {
   'container-timing': { kind: 'feature' },
   'let-const': { kind: 'feature' },
   'hashbang-comments': { kind: 'feature' },
+  'container-queries': { kind: 'feature', name: 'Container queries', spec: 'https://drafts.csswg.org/css-contain-3/' },
+  'container-style-queries': { kind: 'feature', name: 'Container style queries', spec: 'https://drafts.csswg.org/css-contain-3/#style-container' },
+  'view-transitions': { kind: 'feature', name: 'View transitions' },
 };
 
 const upstream: UpstreamMappings = {
@@ -48,6 +51,9 @@ const features: RawFeatureLike[] = [
   { id: 7, name: 'Bad value', web_feature: 'LanguageModel' },
   { id: 8, name: 'Issue link', web_feature: 'https://github.com/web-platform-dx/web-features/issues/1' },
   { id: 9, name: 'Split value', web_feature: 'single-color-gradients' },
+  { id: 10, name: 'Unmapped with spec section', web_feature: null, spec_link: 'https://drafts.csswg.org/css-contain-3/#container-rule' },
+  { id: 11, name: 'Unmapped with broad spec', web_feature: null, spec_link: 'https://drafts.csswg.org/css-contain-3/' },
+  { id: 12, name: 'Cross-document view transitions', web_feature: null },
 ];
 
 test('auditOverrides classifies each override', () => {
@@ -73,23 +79,20 @@ test('auditOverrides classifies each override', () => {
 test('suggestChromeStatusEdits covers overrides, bad IDs, and evidence-based candidates', () => {
   const audit = auditOverrides({ 'HTML in canvas': 'canvas-html' }, features, upstream, catalog);
   const edits = suggestChromeStatusEdits(audit, features, upstream, catalog);
-  const byName = Object.fromEntries(edits.map(e => [e.featureName, e]));
 
-  assert.equal(byName['HTML in canvas'].reason, 'override');
-  assert.equal(byName['HTML in canvas'].suggestedValue, 'canvas-html');
-  assert.equal(byName['Grid lanes'].reason, 'moved-id');
-  assert.equal(byName['Grid lanes'].suggestedValue, 'grid-lanes');
-  assert.equal(byName['Split value'].reason, 'split-id');
-  assert.equal(byName['Bad value'].reason, 'invalid-id');
-  assert.equal(byName['Bad value'].suggestedValue, 'languagemodel');
-  assert.equal(byName['Issue link'].reason, 'invalid-id');
-  assert.equal(byName['Issue link'].suggestedValue, null);
-  assert.equal(byName['Unmapped with bug'].reason, 'shared-bug');
-  assert.equal(byName['Unmapped with bug'].suggestedValue, 'container-timing');
-  assert.equal(byName['Unmapped with MDN'].reason, 'mdn-docs');
-  assert.equal(byName['Unmapped with MDN'].suggestedValue, 'let-const');
-  assert.equal(byName['Unmapped with section link'], undefined, 'a section link must not match a different section');
-  assert.equal(byName['Prompt API'], undefined, 'valid values need no edit');
+  // Absent: 'Prompt API' (valid value), 'Unmapped with section link' (different MDN section),
+  // 'Unmapped with broad spec' (spec listed by two web features).
+  assert.deepEqual(Object.fromEntries(edits.map(e => [e.featureName, [e.reason, e.suggestedValue]])), {
+    'HTML in canvas': ['override', 'canvas-html'],
+    'Grid lanes': ['moved-id', 'grid-lanes'],
+    'Split value': ['split-id', 'gradients,conic-gradients'],
+    'Bad value': ['invalid-id', 'languagemodel'],
+    'Issue link': ['invalid-id', null],
+    'Unmapped with bug': ['shared-bug', 'container-timing'],
+    'Unmapped with MDN': ['mdn-docs', 'let-const'],
+    'Unmapped with spec section': ['spec-url', 'container-queries'],
+    'Cross-document view transitions': ['name-match', 'view-transitions'],
+  });
 });
 
 test('crbugId and mdnKey normalize URL variants', () => {

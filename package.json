@@ -18,7 +18,6 @@
   "scripts": {
     "audit:mappings": "node scripts/print-mappings.ts",
     "audit:gated": "node scripts/print-gated-features.ts",
-    "audit:unmapped-ots": "node scripts/find-unmapped-ot-features.ts",
     "audit:conformance": "node scripts/audit-bcd-conformance.ts",
     "audit:overrides": "node scripts/audit-overrides.ts",
     "audit:chromestatus-edits": "node scripts/print-chromestatus-edits.ts",

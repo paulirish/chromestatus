@@ -8,6 +8,9 @@ export interface WebFeatureEntryLike {
   redirect_target?: string;
   redirect_targets?: string[];
   status?: { baseline_low_date?: string; support?: Record<string, string> };
+  name?: string;
+  description?: string;
+  spec?: string | string[];
 }
 export type WebFeaturesCatalog = Readonly<Record<string, WebFeatureEntryLike>>;
 

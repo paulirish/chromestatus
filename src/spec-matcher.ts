@@ -22,13 +22,12 @@ export function isSpecMatch(dSpec: string, wSpec: string): boolean {
   const anchorWSpec = extractAnchor(wSpec);
   
   if (!baseDSpec || !baseWSpec) return false;
+  if (!(baseDSpec === baseWSpec || baseWSpec.startsWith(baseDSpec) || baseDSpec.startsWith(baseWSpec))) return false;
 
-  if (baseDSpec === baseWSpec || baseWSpec.startsWith(baseDSpec) || baseDSpec.startsWith(baseWSpec)) {
-    // Strict alignment checking for monolithic standards to avoid broad mapping
-    if (baseDSpec.includes('html.spec.whatwg.org') || baseDSpec.includes('w3.org')) {
-      return !!(anchorDSpec && anchorWSpec && anchorDSpec === anchorWSpec);
-    }
-    return true;
+  // Strict alignment checking for monolithic standards to avoid broad mapping
+  if (baseDSpec.includes('html.spec.whatwg.org') || baseDSpec.includes('w3.org')) {
+    return !!(anchorDSpec && anchorWSpec && anchorDSpec === anchorWSpec);
   }
-  return false;
+  // Different sections of one spec are different features.
+  return !(anchorDSpec && anchorWSpec && anchorDSpec !== anchorWSpec);
 }
