@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { CollectorResultsIndex } from '../src/collector-results-index.ts';
-import { ConformanceAuditor, type ConformanceBucket, type ConformanceRecord } from '../src/conformance.ts';
+import { ConformanceAuditor, findMilestoneDrift, type ConformanceBucket, type ConformanceRecord } from '../src/conformance.ts';
 import type { ChromeStatusFeatureVerbose } from '../src/types.ts';
 
 /** Writes bcd_conformance_report.md: ChromeStatus milestones vs web-features support vs mdn-bcd-results collector results. */
@@ -14,6 +14,7 @@ const features: ChromeStatusFeatureVerbose[] = fs.readdirSync(featuresDir)
   .map(f => JSON.parse(fs.readFileSync(path.join(featuresDir, f), 'utf8')));
 
 const result = new ConformanceAuditor(collectorIndex).audit(features);
+const drift = findMilestoneDrift(result).toSorted((a, b) => a.name.localeCompare(b.name));
 
 const SECTIONS: ReadonlyArray<{ bucket: ConformanceBucket; title: string; summary: string; description: string }> = [
   { bucket: 'bcdLagging', title: 'Static BCD Lagging', summary: 'Collector passes at CS milestone, BCD is later',
@@ -47,6 +48,7 @@ This report analyzes the alignment between **ChromeStatus** milestones, **static
 - **Total Features Audited**: ${total}
 - **Conformant** (CS = BCD = Collector): ${result.conformant.length}
 ${SECTIONS.map(s => `- **${s.title}** (${s.summary}): ${result[s.bucket].length}`).join('\n')}
+- **Milestone Drift** (no collector evidence, CS and BCD milestones differ; subset of sections ${SECTIONS.length - 1}–${SECTIONS.length}): ${drift.length}
 
 ---
 `;
@@ -54,6 +56,7 @@ SECTIONS.forEach((s, i) => {
   const records = result[s.bucket].toSorted((a, b) => a.name.localeCompare(b.name));
   markdown += `\n## ${i + 1}. ${s.title} (${records.length} features)\n${s.description}\n\n${records.map(r => entry(r, s.bucket)).join('')}`;
 });
+markdown += `\n## ${SECTIONS.length + 1}. Milestone Drift (${drift.length} features)\nFeatures from the two previous sections where ChromeStatus and BCD record different milestones. With no collector results to break the tie, either source may be wrong.\n\n${drift.map(r => entry(r, 'noBcdKeys')).join('')}`;
 
 const reportPath = path.resolve(projectRoot, 'bcd_conformance_report.md');
 fs.writeFileSync(reportPath, markdown);

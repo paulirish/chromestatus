@@ -4,7 +4,7 @@ import { CUSTOM_WEB_FEATURE_OVERRIDES } from '../src/overrides.ts';
 import { tokenize } from '../src/text-analyzer.ts';
 import { normalizeBaseUrl, extractAnchor, isSpecMatch } from '../src/spec-matcher.ts';
 import { CollectorResultsIndex } from '../src/collector-results-index.ts';
-import { ConformanceAuditor, classifyConformance } from '../src/conformance.ts';
+import { ConformanceAuditor, classifyConformance, findMilestoneDrift } from '../src/conformance.ts';
 import type { ChromeStatusFeatureVerbose } from '../src/types.ts';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -192,4 +192,14 @@ test('classifyConformance buckets', () => {
   assert.deepEqual(cases.map(([cs, wf, min]) => classifyConformance(cs, wf, min)), [
     'conformant', 'conformant', 'bcdLagging', 'csStale', 'csStale', 'coarseMapping', 'bcdLagging', 'flagGaps',
   ]);
+});
+
+test('findMilestoneDrift keeps disagreeing features without collector evidence', () => {
+  const record = (name: string, csMilestone: number, wfMilestone: string) =>
+    ({ id: 0, name, webFeatureId: 'x', csMilestone, wfMilestone, collector: '', keys: '' });
+  const drift = findMilestoneDrift({
+    noCollectorData: [record('agree', 120, 'M120'), record('differ', 120, 'M118')],
+    noBcdKeys: [record('unsupported in BCD', 125, 'unsupported')],
+  });
+  assert.deepEqual(drift.map(r => r.name), ['differ', 'unsupported in BCD']);
 });

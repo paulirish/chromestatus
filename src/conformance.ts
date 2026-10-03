@@ -48,6 +48,14 @@ function abbreviate(keys: string[], shown: number): string {
   return keys.length > shown ? `${keys.slice(0, shown).join(', ')} (+${keys.length - shown} more)` : keys.join(', ');
 }
 
+/**
+ * Features without collector evidence (no collector data or no BCD keys) where ChromeStatus and web-features
+ * disagree on the shipping milestone. Without collector results, the report can't say which source is wrong.
+ */
+export function findMilestoneDrift(result: Pick<ConformanceAuditResult, 'noCollectorData' | 'noBcdKeys'>): ConformanceRecord[] {
+  return [...result.noCollectorData, ...result.noBcdKeys].filter(r => r.wfMilestone !== `M${r.csMilestone}`);
+}
+
 /** Compares ChromeStatus shipping milestones with web-features support data and collector results from mdn-bcd-results. */
 export class ConformanceAuditor {
   private readonly collectorIndex: CollectorResultsIndex;

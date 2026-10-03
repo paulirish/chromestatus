@@ -128,5 +128,6 @@ A three-way reconciliation of the Chrome shipping milestone recorded by ChromeSt
 * **ChromeStatus stale**: collector tests and BCD agree, and ChromeStatus records a different milestone. ChromeStatus is wrong.
 * **Coarse mapping**: the BCD milestone predates the earliest collector pass because a broad web feature also covers older BCD keys. The cause is a granularity mismatch between the ChromeStatus feature and the web feature, not a bug in this project's mapping logic.
 * **Flag gap**: BCD records no support and collector tests first pass later than the ChromeStatus milestone, usually because the feature was behind a flag during collector runs or tests were written after launch.
+* **Milestone drift**: no collector results exist, and ChromeStatus and BCD record different milestones. Either source may be wrong.
 
 * _Reference_: `src/conformance.ts#ConformanceAuditResult`
