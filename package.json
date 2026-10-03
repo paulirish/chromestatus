@@ -8,6 +8,12 @@
     "type": "git",
     "url": "git+https://github.com/paulirish/chromestatus.git"
   },
+  "files": [
+    "src/",
+    "data/basic.json",
+    "data/web-feature-extras.json",
+    "data/features/"
+  ],
   "exports": {
     ".": "./src/index.ts",
     "./data/*": "./data/*"
