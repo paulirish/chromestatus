@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { features as webFeatures } from 'web-features';
 import type { ChromeStatusFeatureVerbose } from '../src/types.ts';
-import { isSpecMatch, MONOLITHIC_SYMBOLS } from '../src/spec-matcher.ts';
+import { isSpecMatch, BROAD_WEB_FEATURE_IDS } from '../src/spec-matcher.ts';
 
 async function main() {
   const dataDir = path.resolve(process.cwd(), 'data');
@@ -59,7 +59,7 @@ async function main() {
     let matchType: 'spec_cross_reference' | 'semantic_keyword' = 'spec_cross_reference';
 
     for (const [webFeatureId, wfData] of Object.entries(webFeatures)) {
-      if (wfData.kind !== 'feature' || MONOLITHIC_SYMBOLS.has(webFeatureId) || webFeatureId.length <= 2) continue;
+      if (wfData.kind !== 'feature' || BROAD_WEB_FEATURE_IDS.has(webFeatureId) || webFeatureId.length <= 2) continue;
       const wfSpecs = wfData.spec || [];
       
       for (const dSpec of documentedSpecs) {
@@ -78,7 +78,7 @@ async function main() {
     if (!granularWebFeatureIdMatched) {
       const query = feature.name.toLowerCase();
       for (const [webFeatureId, wfData] of Object.entries(webFeatures)) {
-        if (wfData.kind !== 'feature' || MONOLITHIC_SYMBOLS.has(webFeatureId) || webFeatureId.length <= 2) continue;
+        if (wfData.kind !== 'feature' || BROAD_WEB_FEATURE_IDS.has(webFeatureId) || webFeatureId.length <= 2) continue;
         const wfName = (wfData.name || '').toLowerCase();
         
         if (

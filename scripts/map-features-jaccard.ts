@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { features as webFeatures } from 'web-features';
 import { tokenize, jaccardIndex, overlapCoefficient } from '../src/text-analyzer.ts';
-import { MONOLITHIC_SYMBOLS } from '../src/spec-matcher.ts';
+import { BROAD_WEB_FEATURE_IDS } from '../src/spec-matcher.ts';
 import { CUSTOM_WEB_FEATURE_OVERRIDES } from '../src/overrides.ts';
 
 export interface VerifiedFeatureMapping {
@@ -31,7 +31,7 @@ async function main() {
   // Build candidate web feature collection
   const candidateFeatures: { id: string; name: string; tokens: Set<string> }[] = [];
   for (const [webFeatureId, wfData] of Object.entries(webFeatures)) {
-    if (wfData.kind !== 'feature' || MONOLITHIC_SYMBOLS.has(webFeatureId) || webFeatureId.length <= 2) continue;
+    if (wfData.kind !== 'feature' || BROAD_WEB_FEATURE_IDS.has(webFeatureId) || webFeatureId.length <= 2) continue;
     const desc = wfData.description || '';
     const name = wfData.name || '';
     const tokens = tokenize(`${name} ${desc}`);

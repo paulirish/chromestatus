@@ -205,7 +205,7 @@ async function main() {
   );
 
   console.log("\nProcessing basic feature array data from cache...");
-  const basicContent = await fs.readFile(path.join(rawDir, 'features-lite.json'), 'utf8');
+  const basicContent = await fs.readFile(path.join(rawDir, 'features-basic.json'), 'utf8');
   const basicData = JSON.parse(basicContent);
   const basicFeatures: any[] = Array.isArray(basicData) ? basicData : basicData.features || [];
 

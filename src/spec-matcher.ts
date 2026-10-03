@@ -13,7 +13,7 @@ export function extractAnchor(url: string | null | undefined): string | null {
   return url.split('#')[1];
 }
 
-export const MONOLITHIC_SYMBOLS = new Set(['html', 'dom', 'css', 'fetch', 'xhr', 'svg', 'webappsec']);
+export const BROAD_WEB_FEATURE_IDS = new Set(['html', 'dom', 'fetch', 'xhr', 'svg']);
 
 export function isSpecMatch(dSpec: string, wSpec: string): boolean {
   const baseDSpec = normalizeBaseUrl(dSpec);

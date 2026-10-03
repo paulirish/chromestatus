@@ -63,10 +63,10 @@ async function main() {
   console.log("Fetching basic feature array data...");
   const basicData = await fetchCleanJson('https://chromestatus.com/features.json');
   await fs.writeFile(
-    path.join(rawDir, 'features-lite.json'),
+    path.join(rawDir, 'features-basic.json'),
     JSON.stringify(basicData, null, 2)
   );
-  console.log(`Saved raw basic features to data/raw/features-lite.json`);
+  console.log(`Saved raw basic features to data/raw/features-basic.json`);
 
   // 4. Live Authoritative Origin Trials API feed
   console.log("Fetching live authoritative Google Chrome Origin Trials API payload...");

@@ -3,7 +3,7 @@
  * ChromeStatus feature names to web feature IDs.
  *
  * Each entry patches missing or wrong ChromeStatus data. `pnpm run audit:overrides` flags
- * entries that became redundant, broken, or orphaned, and `pnpm run audit:chromestatus-edits`
+ * entries that became redundant, broken, or unknown-name (no feature has that name), and `pnpm run audit:chromestatus-edits`
  * lists the matching upstream ChromeStatus fixes so entries can eventually be deleted.
  * IDs that web-features marks as `moved` are resolved at compile time and don't need entries here.
  */

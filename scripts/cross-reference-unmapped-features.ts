@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { features as webFeatures } from 'web-features';
 import { CUSTOM_WEB_FEATURE_OVERRIDES } from '../src/overrides.ts';
-import { MONOLITHIC_SYMBOLS, isSpecMatch } from '../src/spec-matcher.ts';
+import { BROAD_WEB_FEATURE_IDS, isSpecMatch } from '../src/spec-matcher.ts';
 import { disambiguateFeatureNames } from '../src/compile-helpers.ts';
 import { parseWebFeatureValue } from '../src/upstream-mappings.ts';
 
@@ -49,7 +49,7 @@ async function main() {
 
     // Exclude broad monolithic specs from matching granular entries
     for (const [webFeatureId, wfData] of Object.entries(webFeatures)) {
-      if (wfData.kind !== 'feature' || MONOLITHIC_SYMBOLS.has(webFeatureId) || webFeatureId.length <= 2) continue;
+      if (wfData.kind !== 'feature' || BROAD_WEB_FEATURE_IDS.has(webFeatureId) || webFeatureId.length <= 2) continue;
       const wfSpecs: string[] = [wfData.spec ?? []].flat();
       if (documentedSpecs.some(dSpec => wfSpecs.some(wSpec => isSpecMatch(dSpec, wSpec)))) {
         granularWebFeatureIdMatched = webFeatureId;

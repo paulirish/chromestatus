@@ -27,7 +27,7 @@ export type OverrideStatus =
   | 'conflict'  // ChromeStatus has valid IDs that differ from the override
   | 'needed'    // ChromeStatus has no valid IDs
   | 'broken'    // the override references an ID that isn't a current web-features feature
-  | 'orphaned'; // no ChromeStatus feature has this name
+  | 'unknown-name'; // no ChromeStatus feature has this name
 
 export interface OverrideAuditEntry {
   featureName: string;
@@ -112,7 +112,7 @@ export function auditOverrides(
 
     let status: OverrideStatus;
     const effectiveIds = [...new Set(chromeStatusIds.map(id => resolveMoved(id, catalog)))];
-    if (!feature) status = 'orphaned';
+    if (!feature) status = 'unknown-name';
     else if (!overrideIds.every(id => isCurrentFeature(id, catalog))) status = 'broken';
     else if (sameSet(overrideIds, effectiveIds)) status = 'redundant';
     else if (effectiveIds.length && effectiveIds.every(id => isCurrentFeature(id, catalog))) status = 'conflict';

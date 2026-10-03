@@ -28,7 +28,7 @@ async function main() {
 
   const counts = Object.groupBy(audit, o => o.status);
   console.log('\nSummary:', Object.fromEntries(Object.entries(counts).map(([k, v]) => [k, v?.length ?? 0])));
-  if (audit.some(o => o.status === 'redundant' || o.status === 'broken' || o.status === 'orphaned')) {
+  if (audit.some(o => o.status === 'redundant' || o.status === 'broken' || o.status === 'unknown-name')) {
     process.exitCode = 1;
   }
 }

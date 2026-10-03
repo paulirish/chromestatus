@@ -71,7 +71,7 @@ test('auditOverrides classifies each override', () => {
     'Prompt API': 'languagemodel',    // redundant
     'Unmapped with bug': 'container-timing', // needed
     'Split value': 'masonry',         // broken: override uses a moved ID
-    'Renamed away': 'canvas',         // orphaned
+    'Renamed away': 'canvas',         // unknown-name
   };
   const byName = Object.fromEntries(auditOverrides(overrides, features, upstream, catalog).map(o => [o.featureName, o]));
   assert.equal(byName['HTML in canvas'].status, 'conflict');
@@ -80,7 +80,7 @@ test('auditOverrides classifies each override', () => {
   assert.equal(byName['Prompt API'].status, 'redundant');
   assert.equal(byName['Unmapped with bug'].status, 'needed');
   assert.equal(byName['Split value'].status, 'broken');
-  assert.equal(byName['Renamed away'].status, 'orphaned');
+  assert.equal(byName['Renamed away'].status, 'unknown-name');
   assert.equal(byName['Renamed away'].chromestatusUrl, null);
 });
 
@@ -124,7 +124,7 @@ test('live overrides are all still needed', async (t) => {
   }
   const raw: RawFeatureLike[] = JSON.parse(fs.readFileSync(rawUrl, 'utf8')).features;
   const audit = auditOverrides(CUSTOM_WEB_FEATURE_OVERRIDES, raw, await loadUpstreamMappings(), webFeatures as WebFeaturesCatalog);
-  const stale = audit.filter(o => o.status === 'redundant' || o.status === 'orphaned' || o.status === 'broken');
+  const stale = audit.filter(o => o.status === 'redundant' || o.status === 'unknown-name' || o.status === 'broken');
   assert.deepEqual(
     stale.map(o => `${o.featureName}: ${o.status}${o.notes.length ? ` (${o.notes.join('; ')})` : ''}`),
     [],
