@@ -1,5 +1,5 @@
 import { test } from 'node:test';
-import assert from 'node:assert';
+import assert from 'node:assert/strict';
 import { CUSTOM_WEB_FEATURE_OVERRIDES } from '../src/overrides.ts';
 import { tokenize, jaccardIndex, overlapCoefficient } from '../src/text-analyzer.ts';
 import { normalizeBaseUrl, extractAnchor, isSpecMatch } from '../src/spec-matcher.ts';
@@ -280,27 +280,24 @@ test('Alignment Auditor - Diagnostics', () => {
 
   const report = AlignmentAuditor.run(mockStubs);
 
-  assert.equal(report.orphans.length, 1);
-  assert.equal(report.orphans[0].featureId, 10);
-  assert.equal(report.orphans[0].staleSymbol, "non-existent-symbol");
-
-  assert.equal(report.redirects.length, 2);
-  const moved = report.redirects.find((r: any) => r.fromSymbol === "display-grid-lanes");
-  assert.ok(moved);
-  assert.equal(moved.kind, "moved");
-  assert.equal(moved.target, "grid-lanes");
-
-  const split = report.redirects.find((r: any) => r.fromSymbol === "single-color-gradients");
-  assert.ok(split);
-  assert.equal(split.kind, "split");
-  assert.deepEqual(split.target, ["gradients", "conic-gradients"]);
-
-  assert.equal(report.milestoneDrift.length, 1);
-  assert.equal(report.milestoneDrift[0].featureId, 30);
-  assert.equal(report.milestoneDrift[0].csMilestone, "M50");
-  assert.equal(report.milestoneDrift[0].wfMilestone, "M57");
-
-  assert.equal(report.collisions.length, 1);
-  assert.equal(report.collisions[0].symbol, "flexbox");
-  assert.deepEqual(report.collisions[0].featureIds, [41, 42]);
+  assert.deepEqual({
+    orphans: report.orphans.map(({ featureId, ...rest }) => rest),
+    redirects: report.redirects.map(({ featureId, ...rest }) => rest),
+    milestoneDrift: report.milestoneDrift.map(({ featureId, ...rest }) => rest),
+    collisions: report.collisions.map(({ featureIds, ...rest }) => rest),
+  }, {
+    orphans: [
+      { featureName: "Orphan Feature", staleSymbol: "non-existent-symbol" },
+    ],
+    redirects: [
+      { featureName: "Moved Feature", fromSymbol: "display-grid-lanes", kind: "moved", target: "grid-lanes" },
+      { featureName: "Split Feature", fromSymbol: "single-color-gradients", kind: "split", target: ["gradients", "conic-gradients"] },
+    ],
+    milestoneDrift: [
+      { featureName: "Drifting Feature", symbol: "grid", csMilestone: "M50", wfMilestone: "M57" },
+    ],
+    collisions: [
+      { symbol: "flexbox", featureNames: ["Collision Feature 1", "Collision Feature 2"] },
+    ],
+  });
 });
