@@ -70,6 +70,8 @@ test('resolveGatedBy', () => {
   const cases = {
     feedListsFeatureId: resolveGatedBy({ id: 101 }, feed, undefined),
     feedListsTrialName: resolveGatedBy({ id: 102, stages: [{ stage_type: 150, ot_chromium_trial_name: 'ActiveTrialName' }] }, feed, undefined),
+    feedListsDeprecationTrialName: resolveGatedBy({ id: 104, stages: [{ stage_type: 450, ot_chromium_trial_name: 'ActiveTrialName' }] }, feed, undefined),
+    feedIgnoresEvalReadinessStage: resolveGatedBy({ id: 105, stages: [{ stage_type: 140, ot_chromium_trial_name: 'ActiveTrialName' }] }, feed, undefined),
     feedOverridesHeuristic: resolveGatedBy({ id: 103, stages: [otStage(100, 125)] }, feed, undefined),
     heuristicEndedTrial: resolveGatedBy({ id: 1, stages: [otStage(100, 115)] }, noFeed, undefined),
     heuristicRunningTrial: resolveGatedBy({ id: 2, stages: [otStage(100, 125)] }, noFeed, undefined),
@@ -86,6 +88,8 @@ test('resolveGatedBy', () => {
   assert.deepEqual(cases, {
     feedListsFeatureId: ['Origin Trial'],
     feedListsTrialName: ['Origin Trial'],
+    feedListsDeprecationTrialName: ['Origin Trial'],
+    feedIgnoresEvalReadinessStage: [],
     feedOverridesHeuristic: [],
     heuristicEndedTrial: [],
     heuristicRunningTrial: ['Origin Trial'],

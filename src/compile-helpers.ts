@@ -1,6 +1,6 @@
 import { features as defaultWebFeatures } from 'web-features';
 import { CUSTOM_WEB_FEATURE_OVERRIDES } from './overrides.ts';
-import type { GatedBy, Stage } from './types.ts';
+import type { GatedBy, Stage, StageType } from './types.ts';
 
 /** Minimal web-features catalog entry shape used for resolution. */
 export interface WebFeatureEntryLike {
@@ -104,13 +104,17 @@ function isOldBaseline(baselineYear: number | undefined): boolean {
   return baselineYear !== undefined && baselineYear < GATING_BASELINE_CUTOFF_YEAR;
 }
 
-function originTrialStages(f: GatingInput): Partial<Stage>[] {
-  return (f.stages ?? []).filter(s => s.stage_type === 150);
+/** ALL_ORIGIN_TRIAL_STAGE_TYPES in chromium-dashboard `internals/core_enums.py`: Blink, Fast Track and Deprecation trials. */
+const ORIGIN_TRIAL_STAGE_TYPES: ReadonlySet<StageType> = new Set<StageType>([150, 250, 450]);
+const BLINK_ORIGIN_TRIAL_STAGE_TYPE: ReadonlySet<StageType> = new Set<StageType>([150]);
+
+function stagesOfType(f: GatingInput, types: ReadonlySet<StageType>): Partial<Stage>[] {
+  return (f.stages ?? []).filter(s => s.stage_type !== undefined && types.has(s.stage_type));
 }
 
 function isListedByOtApi(f: GatingInput, ctx: OriginTrialContext): boolean {
   return ctx.otApiActiveFeatureIds.has(f.id) ||
-    originTrialStages(f).some(s => typeof s.ot_chromium_trial_name === 'string' && ctx.otApiActiveTrialNames.has(s.ot_chromium_trial_name));
+    stagesOfType(f, ORIGIN_TRIAL_STAGE_TYPES).some(s => typeof s.ot_chromium_trial_name === 'string' && ctx.otApiActiveTrialNames.has(s.ot_chromium_trial_name));
 }
 
 /**
@@ -124,7 +128,8 @@ function looksLikeActiveTrial(f: GatingInput, stableMilestone: number): boolean 
   // "Behind a flag" (RELEASE_IMPL_STATES in chromium-dashboard internals/core_enums.py).
   if (isShippedOrAbandoned(f)) return false;
   const status = statusText(f);
-  const stages = originTrialStages(f);
+  // Blink trials only: adding Fast Track/Deprecation stages here pulls in stale and shipped features.
+  const stages = stagesOfType(f, BLINK_ORIGIN_TRIAL_STAGE_TYPE);
   const inWindow = stages.some(s => {
     if ((s.desktop_first ?? 0) > stableMilestone) return false;
     if (s.desktop_last != null) return s.desktop_last >= stableMilestone;

@@ -1,16 +1,35 @@
 /**
  * Core domain interfaces for ChromeStatus feature data.
- * Designed for high-performance client indexing and lazy payload evaluation.
  */
 
-export type StageType = 
-  | 110 // Intent to Prototype
-  | 120 // Dev Trial
-  | 130 // Intent to Experiment
-  | 140 // Origin Trial
-  | 150 // Origin Trial (Active / Specific)
-  | 160 // Intent to Ship
-  | 410 | 430 | 450 | 460 | 470; // Deprecation/Removal stages
+/**
+ * Stage types from chromium-dashboard `internals/core_enums.py`, grouped by feature process:
+ * Blink new standard (1xx), Fast Track (2xx), PSA (3xx), Deprecation (4xx), Enterprise (106x).
+ */
+export type StageType =
+  | 110 // STAGE_BLINK_INCUBATE
+  | 120 // STAGE_BLINK_PROTOTYPE (Intent to Prototype)
+  | 130 // STAGE_BLINK_DEV_TRIAL
+  | 140 // STAGE_BLINK_EVAL_READINESS (not a trial)
+  | 150 // STAGE_BLINK_ORIGIN_TRIAL (Intent to Experiment)
+  | 151 // STAGE_BLINK_EXTEND_ORIGIN_TRIAL
+  | 160 // STAGE_BLINK_SHIPPING (Intent to Ship)
+  | 220 // STAGE_FAST_PROTOTYPE
+  | 230 // STAGE_FAST_DEV_TRIAL
+  | 250 // STAGE_FAST_ORIGIN_TRIAL
+  | 251 // STAGE_FAST_EXTEND_ORIGIN_TRIAL
+  | 260 // STAGE_FAST_SHIPPING
+  | 320 // STAGE_PSA_IMPLEMENT
+  | 330 // STAGE_PSA_DEV_TRIAL
+  | 360 // STAGE_PSA_SHIPPING
+  | 410 // STAGE_DEP_PLAN (Intent to Deprecate)
+  | 430 // STAGE_DEP_DEV_TRIAL
+  | 450 // STAGE_DEP_DEPRECATION_TRIAL
+  | 451 // STAGE_DEP_EXTEND_DEPRECATION_TRIAL
+  | 460 // STAGE_DEP_SHIPPING
+  | 470 // STAGE_DEP_REMOVE_CODE
+  | 1061 // STAGE_ENT_ROLLOUT
+  | 1070; // STAGE_ENT_SHIPPED
 
 export interface Stage {
   id: number;
