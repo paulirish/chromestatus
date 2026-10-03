@@ -315,8 +315,8 @@ export class ChromeStatusClient {
     try {
       const feature = this.findFeature(query);
       if (!feature) return undefined;
-      const chunkUrl = new URL(`../data/features/${feature.id}.json`, import.meta.url);
-      const text = await fs.readFile(chunkUrl, 'utf8');
+      const verboseUrl = new URL(`../data/features/${feature.id}.json`, import.meta.url);
+      const text = await fs.readFile(verboseUrl, 'utf8');
       return JSON.parse(text);
     } catch (err: any) {
       // Explicitly swallow target absence file codes cleanly to return undefined

@@ -62,7 +62,7 @@ To bridge these API constraints without imposing massive data penalties on downs
 graph TD
     API1[ChromeStatus API <br> Verbose Features] -->|build/fetch.ts| DataDir[Local /data/ Layer]
     API2[ChromeStatus API <br> Basic Features Array] -->|build/fetch.ts| DataDir
-    DataDir -->|Synchronous Import| Lite[catalog.features <br> Instant In-Memory Indexing]
+    DataDir -->|Synchronous Import| Basic[catalog.features <br> Instant In-Memory Indexing]
     DataDir -->|Dynamic import()| Hydrate[catalog.getFeatureVerbose id <br> Zero-Footprint Lazy Resolution]
 ```
 
