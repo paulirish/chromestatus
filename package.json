@@ -35,6 +35,6 @@
   },
   "devDependencies": {
     "@types/node": "^26.2.0",
-    "web-features": "^3.34.3"
+    "web-features": "^3.40.1"
   }
 }

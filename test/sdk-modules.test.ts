@@ -288,7 +288,7 @@ test('Alignment Auditor - Diagnostics', () => {
   const moved = report.redirects.find((r: any) => r.fromSymbol === "display-grid-lanes");
   assert.ok(moved);
   assert.equal(moved.kind, "moved");
-  assert.equal(moved.target, "masonry");
+  assert.equal(moved.target, "grid-lanes");
 
   const split = report.redirects.find((r: any) => r.fromSymbol === "single-color-gradients");
   assert.ok(split);

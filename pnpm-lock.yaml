@@ -12,8 +12,8 @@ importers:
         specifier: ^26.2.0
         version: 26.2.0
       web-features:
-        specifier: ^3.34.3
-        version: 3.34.3
+        specifier: ^3.40.1
+        version: 3.40.1
 
 packages:
 
@@ -23,8 +23,8 @@ packages:
   undici-types@8.3.0:
     resolution: {integrity: sha512-j375ScV60dom+YkPFIfTLcOiPxkN/buHz5GobjLhixFuANaNs3C9l4GmrWqejgXWJ7BbJcFYpTEUkS1Ge8bpZQ==}
 
-  web-features@3.34.3:
-    resolution: {integrity: sha512-eXdaGO8JSiLLC5/tLOeDiH0EVIbuD8NExMDAziU0frr9JRdiEKqyOsTeEZDtmCXbazEI3mB+plYO4oMYOj1/Dg==}
+  web-features@3.40.1:
+    resolution: {integrity: sha512-HRdUYqZRNawtIEI39iKjk6E6g1yO/bct/8bFcD/O+bNGYsbG475PV80+HTrpkYOiZnoEaVSMu5Q/LTVwnBH5ag==}
 
 snapshots:
 
@@ -34,4 +34,4 @@ snapshots:
 
   undici-types@8.3.0: {}
 
-  web-features@3.34.3: {}
+  web-features@3.40.1: {}

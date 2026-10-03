@@ -60,12 +60,13 @@ test('WebFeature Population Metrics - Audits catalog string identifier presence 
   ]);
 
   for (const feature of legitimateStubs) {
-    const symbol = feature.web_feature!;
-    if (Object.hasOwn(webFeatures, symbol)) {
+    const symbols = (feature.web_feature ?? '').split(',').map(s => s.trim()).filter(Boolean);
+    const unknown = symbols.filter(s => !Object.hasOwn(webFeatures, s));
+    if (unknown.length === 0) {
       validMappingCount++;
-    } else if (!knownUpstreamExceptions.has(symbol)) {
+    } else if (!unknown.every(s => knownUpstreamExceptions.has(s))) {
       if (invalidSamples.length < 5) {
-        invalidSamples.push(`"${symbol}" (Feature ID: ${feature.id})`);
+        invalidSamples.push(`"${feature.web_feature}" (${feature.name})`);
       }
     }
   }
