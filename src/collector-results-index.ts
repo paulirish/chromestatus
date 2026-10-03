@@ -14,7 +14,6 @@ export class CollectorResultsIndex {
    */
   static loadFromDir(resultsDir: string): CollectorResultsIndex {
     const index = new CollectorResultsIndex();
-    if (!fs.existsSync(resultsDir)) return index;
 
     const filenameRegex = /^[0-9.]+-chrome-([0-9.]+)-windows-[0-9a-zA-Z.-]+-[0-9a-f]+\.json$/;
     const files = fs.readdirSync(resultsDir)
@@ -27,24 +26,15 @@ export class CollectorResultsIndex {
 
     for (const fileInfo of files) {
       const filePath = path.join(resultsDir, fileInfo.filename);
-      try {
-        const content = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-        if (!content?.results) continue;
-        for (const testList of Object.values(content.results)) {
-          if (!Array.isArray(testList)) continue;
-          for (const entry of testList) {
-            if (entry?.name && entry.result === true) {
-              if (!index.supportMap.has(entry.name)) {
-                index.supportMap.set(entry.name, {
-                  majorVersion: fileInfo.majorVersion,
-                  fullVersion: fileInfo.fullVersion
-                });
-              }
-            }
+      const content = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+      if (!content?.results) throw new Error(`${filePath} has no results object.`);
+      for (const testList of Object.values(content.results)) {
+        if (!Array.isArray(testList)) continue;
+        for (const entry of testList) {
+          if (entry?.name && entry.result === true && !index.supportMap.has(entry.name)) {
+            index.supportMap.set(entry.name, { majorVersion: fileInfo.majorVersion, fullVersion: fileInfo.fullVersion });
           }
         }
-      } catch {
-        // Graceful error isolation
       }
     }
     return index;

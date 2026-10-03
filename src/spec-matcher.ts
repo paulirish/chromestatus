@@ -1,11 +1,8 @@
 export function normalizeBaseUrl(url: string | null | undefined): string {
   if (!url) return '';
-  try {
-    const parsed = new URL(url);
-    return `${parsed.origin}${parsed.pathname}`.replace(/\/$/, '');
-  } catch {
-    return (url || '').trim().replace(/\/$/, '').split('#')[0];
-  }
+  const parsed = URL.parse(url);
+  // ChromeStatus spec fields are sometimes free text rather than a URL.
+  return (parsed ? `${parsed.origin}${parsed.pathname}` : url.trim().split('#')[0]).replace(/\/$/, '');
 }
 
 export function extractAnchor(url: string | null | undefined): string | null {

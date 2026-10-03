@@ -1,101 +1,49 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-async function fetchCleanJson(url: string): Promise<any> {
+const rawDir = path.resolve(process.cwd(), 'data', 'raw');
+// Public key the developer.chrome.com Origin Trials page uses; the API requires the matching x-origin.
+const OT_API_URL = 'https://content-chromeorigintrials-pa.googleapis.com/v1/trials?prettyPrint=false&key=AIzaSyDNwqPBcgaOul_h00xdxbIlOFiNUYyZCl8';
+
+async function fetchJson(url: string, headers: Record<string, string> = {}): Promise<unknown> {
   console.log(`Fetching ${url}...`);
-  // Implement explicit AbortSignal timeout wrappers to prevent indefinite network deadlocks
-  const res = await fetch(url, { signal: AbortSignal.timeout(30000) });
-  if (!res.ok) {
-    throw new Error(`HTTP error! status: ${res.status} fetching ${url}`);
+  const res = await fetch(url, { headers, signal: AbortSignal.timeout(30000) });
+  if (!res.ok) throw new Error(`HTTP ${res.status} fetching ${url}`);
+  // ChromeStatus prefixes JSON with an XSSI guard.
+  return JSON.parse((await res.text()).trim().replace(/^\)\]\}'\n?/, ''));
+}
+
+function featuresPage(data: unknown): { total_count: number; features: unknown[] } {
+  if (typeof data !== 'object' || data === null || !('features' in data) || !Array.isArray(data.features) || !('total_count' in data)) {
+    throw new Error(`Unexpected ChromeStatus features response: ${JSON.stringify(data).slice(0, 200)}`);
   }
-  let text = await res.text();
-  // Robust prefix stripping handling intermediate whitespace or byte order marks (BOM)
-  text = text.trim().replace(/^\)\]\}'\n?/, '');
-  return JSON.parse(text);
+  return { total_count: Number(data.total_count), features: data.features };
+}
+
+async function writeRaw(file: string, data: unknown): Promise<void> {
+  await fs.writeFile(path.join(rawDir, file), JSON.stringify(data, null, 2));
+  console.log(`Saved data/raw/${file}`);
 }
 
 async function main() {
-  const rawDir = path.resolve(process.cwd(), 'data', 'raw');
   await fs.mkdir(rawDir, { recursive: true });
 
-  console.log("Starting raw data download into data/raw/...");
+  const totalCount = featuresPage(await fetchJson('https://chromestatus.com/api/v0/features?num=1')).total_count;
+  if (!(totalCount >= 3000)) throw new Error(`ChromeStatus reported total_count ${totalCount}; expected at least 3000.`);
 
-  // 1. Verbose features
-  console.log("Fetching verbose data pagination metadata...");
-  const initialData = await fetchCleanJson('https://chromestatus.com/api/v0/features?num=1');
-  const totalCount = Number(initialData?.total_count);
-  if (!totalCount || isNaN(totalCount) || totalCount < 3000) {
-    throw new Error(`Invalid API response: total_count evaluates to unexpected bounds (${totalCount}).`);
-  }
-  console.log(`Total features reported by API: ${totalCount}`);
-
-  const verboseFeatures: any[] = [];
+  const features: unknown[] = [];
   const pageSize = 1000;
   for (let start = 0; start < totalCount; start += pageSize) {
-    const pageData = await fetchCleanJson(`https://chromestatus.com/api/v0/features?num=${pageSize}&start=${start}`);
-    if (pageData?.features && Array.isArray(pageData.features)) {
-      verboseFeatures.push(...pageData.features);
-    } else {
-      console.warn(`Warning: Page starting at ${start} did not return an array of features.`);
-    }
+    features.push(...featuresPage(await fetchJson(`https://chromestatus.com/api/v0/features?num=${pageSize}&start=${start}`)).features);
   }
-  
-  await fs.writeFile(
-    path.join(rawDir, 'features-verbose.json'),
-    JSON.stringify({ total_count: totalCount, features: verboseFeatures }, null, 2)
-  );
-  console.log(`Saved raw verbose features to data/raw/features-verbose.json`);
+  await writeRaw('features-verbose.json', { total_count: totalCount, features });
 
-  // 2. Milestones
-  console.log("Fetching live Chromium release schedule milestone metadata...");
-  try {
-    const scheduleData = await fetchCleanJson('https://chromiumdash.appspot.com/fetch_milestones');
-    await fs.writeFile(
-      path.join(rawDir, 'milestones.json'),
-      JSON.stringify(scheduleData, null, 2)
-    );
-    console.log(`Saved raw milestones to data/raw/milestones.json`);
-  } catch (err) {
-    console.warn("Warning: Failed to fetch dynamic release milestones from Chromium schedule API. Skipping cache write.", err);
-  }
-
-  // 3. Basic features
-  console.log("Fetching basic feature array data...");
-  const basicData = await fetchCleanJson('https://chromestatus.com/features.json');
-  await fs.writeFile(
-    path.join(rawDir, 'features-basic.json'),
-    JSON.stringify(basicData, null, 2)
-  );
-  console.log(`Saved raw basic features to data/raw/features-basic.json`);
-
-  // 4. Live Authoritative Origin Trials API feed
-  console.log("Fetching live authoritative Google Chrome Origin Trials API payload...");
-  try {
-    // Utilizing public discovery key with minimal required x-origin authorization header
-    const otApiUrl = 'https://content-chromeorigintrials-pa.googleapis.com/v1/trials?prettyPrint=false&key=AIzaSyDNwqPBcgaOul_h00xdxbIlOFiNUYyZCl8';
-    const otRes = await fetch(otApiUrl, {
-      headers: {
-        "x-origin": "https://developer.chrome.com"
-      },
-      signal: AbortSignal.timeout(30000)
-    });
-    if (!otRes.ok) {
-      throw new Error(`HTTP error! status: ${otRes.status} fetching OT API`);
-    }
-    const otApiData = await otRes.json();
-    await fs.writeFile(
-      path.join(rawDir, 'ot-api-trials.json'),
-      JSON.stringify(otApiData, null, 2)
-    );
-    console.log(`Saved raw live authoritative Origin Trials API feed to data/raw/ot-api-trials.json`);
-  } catch (err) {
-    console.warn("Warning: Failed to fetch live authoritative Origin Trials API feed. Continuing compilation fallback paths.", err);
-  }
-
-  console.log("Raw data download complete.");
+  await writeRaw('features-basic.json', await fetchJson('https://chromestatus.com/features.json'));
+  await writeRaw('milestones.json', await fetchJson('https://chromiumdash.appspot.com/fetch_milestones'));
+  await writeRaw('ot-api-trials.json', await fetchJson(OT_API_URL, { 'x-origin': 'https://developer.chrome.com' }));
 }
 
 main().catch(err => {
-  console.error("Fatal error downloading raw data:", err);
+  console.error('Fatal error downloading raw data:', err);
   process.exit(1);
 });

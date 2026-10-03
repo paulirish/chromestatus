@@ -4,7 +4,7 @@ import { CUSTOM_WEB_FEATURE_OVERRIDES } from '../src/overrides.ts';
 import { tokenize } from '../src/text-analyzer.ts';
 import { normalizeBaseUrl, extractAnchor, isSpecMatch } from '../src/spec-matcher.ts';
 import { CollectorResultsIndex } from '../src/collector-results-index.ts';
-import { ConformanceAuditor } from '../src/conformance.ts';
+import { ConformanceAuditor, classifyConformance } from '../src/conformance.ts';
 import type { ChromeStatusFeatureVerbose } from '../src/types.ts';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -178,4 +178,18 @@ test('Conformance Auditor - Coarse Mapping Case', () => {
   assert.equal(result.bcdLagging.length, 0);
   assert.equal(result.csStale.length, 0);
   assert.equal(result.flagGaps.length, 0);
+});
+
+test('classifyConformance buckets', () => {
+  // [ChromeStatus milestone, web-features milestone, earliest collector pass]
+  const cases: Array<[number, number | null, number]> = [
+    [116, 116, 116], [116, 116, 110], // conformant
+    [118, 143, 118],                  // collector agrees with ChromeStatus: BCD lags
+    [142, 111, 109], [100, 120, 110], // collector agrees with BCD: ChromeStatus stale
+    [123, 111, 123],                  // BCD earlier than any collector pass: coarse
+    [125, null, 120], [125, null, 130], // no BCD support
+  ];
+  assert.deepEqual(cases.map(([cs, wf, min]) => classifyConformance(cs, wf, min)), [
+    'conformant', 'conformant', 'bcdLagging', 'csStale', 'csStale', 'coarseMapping', 'bcdLagging', 'flagGaps',
+  ]);
 });
