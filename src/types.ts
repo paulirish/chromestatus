@@ -91,7 +91,7 @@ export interface StandardsStatus {
 }
 
 /**
- * Base lightweight feature model shipped synchronously in default client bundle.
+ * Base basic feature model shipped synchronously in default client bundle.
  */
 export interface ChromeStatusFeatureStub {
   id: number;

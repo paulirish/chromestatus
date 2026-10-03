@@ -21,7 +21,7 @@ async function main() {
     id: number;
     name: string;
     documentedSpecs: string[];
-    verifiedWebFeatureSymbol: string;
+    verifiedWebFeatureId: string;
     matchType: 'spec_cross_reference' | 'semantic_keyword';
   }[] = [];
 
@@ -55,49 +55,49 @@ async function main() {
     if ((feature as any).spec_link) specs.add((feature as any).spec_link.trim());
     const documentedSpecs = Array.from(specs).filter(Boolean);
 
-    let granularSymbolMatched: string | null = null;
+    let granularWebFeatureIdMatched: string | null = null;
     let matchType: 'spec_cross_reference' | 'semantic_keyword' = 'spec_cross_reference';
 
-    for (const [symbol, wfData] of Object.entries(webFeatures)) {
-      if (wfData.kind !== 'feature' || MONOLITHIC_SYMBOLS.has(symbol) || symbol.length <= 2) continue;
+    for (const [webFeatureId, wfData] of Object.entries(webFeatures)) {
+      if (wfData.kind !== 'feature' || MONOLITHIC_SYMBOLS.has(webFeatureId) || webFeatureId.length <= 2) continue;
       const wfSpecs = wfData.spec || [];
       
       for (const dSpec of documentedSpecs) {
         for (const wSpec of wfSpecs) {
           if (isSpecMatch(dSpec, wSpec)) {
-            granularSymbolMatched = symbol;
+            granularWebFeatureIdMatched = webFeatureId;
             break;
           }
         }
-        if (granularSymbolMatched) break;
+        if (granularWebFeatureIdMatched) break;
       }
-      if (granularSymbolMatched) break;
+      if (granularWebFeatureIdMatched) break;
     }
 
     // Fallback keyword search if no granular spec matched
-    if (!granularSymbolMatched) {
+    if (!granularWebFeatureIdMatched) {
       const query = feature.name.toLowerCase();
-      for (const [symbol, wfData] of Object.entries(webFeatures)) {
-        if (wfData.kind !== 'feature' || MONOLITHIC_SYMBOLS.has(symbol) || symbol.length <= 2) continue;
+      for (const [webFeatureId, wfData] of Object.entries(webFeatures)) {
+        if (wfData.kind !== 'feature' || MONOLITHIC_SYMBOLS.has(webFeatureId) || webFeatureId.length <= 2) continue;
         const wfName = (wfData.name || '').toLowerCase();
         
         if (
-          (query.includes('zstandard') && (symbol.includes('zstd') || wfName.includes('zstandard'))) ||
-          (query.includes('compression dictionary') && (symbol.includes('compression') || wfName.includes('dictionary')))
+          (query.includes('zstandard') && (webFeatureId.includes('zstd') || wfName.includes('zstandard'))) ||
+          (query.includes('compression dictionary') && (webFeatureId.includes('compression') || wfName.includes('dictionary')))
         ) {
-          granularSymbolMatched = symbol;
+          granularWebFeatureIdMatched = webFeatureId;
           matchType = 'semantic_keyword';
           break;
         }
       }
     }
 
-    if (granularSymbolMatched) {
+    if (granularWebFeatureIdMatched) {
       finalVerifiedMappings.push({
         id: feature.id,
         name: feature.name,
         documentedSpecs,
-        verifiedWebFeatureSymbol: granularSymbolMatched,
+        verifiedWebFeatureId: granularWebFeatureIdMatched,
         matchType
       });
     } else {

@@ -28,9 +28,9 @@ This document details the underlying API endpoints exposed by **ChromeStatus.com
 
 ## 2. Basic vs. Verbose Payload Comparison
 
-Empirical evaluation of the basic vs. verbose outputs reveals extreme differences in footprint and property depth across the **3,416 active features** in the catalog:
+Comparative evaluation of the basic vs. verbose outputs reveals extreme differences in footprint and property depth across the **3,416 active features** in the catalog:
 
-| Metric | Option 1 (Verbose Payloads) | Option 2 (Basic Bulk Feed) |
+| Metric | Verbose Features | Basic Features |
 | :--- | :--- | :--- |
 | **Source Endpoint** | `/api/v0/features?num=1000` (Iterated) | `/features.json` |
 | **Monolithic File Size** | **~55.0 MB** | **~8.9 MB** |
@@ -43,14 +43,14 @@ Empirical evaluation of the basic vs. verbose outputs reveals extreme difference
 
 ---
 
-## 3. Ecosystem Linkage & Join Fidelity
+## 3. Ecosystem Linkage & Mapping Fidelity
 
 Feature records frequently populate a string identifier in the `web_feature` field to link external ecosystem specifications. 
 
-Empirical validation against the authoritative **`web-features`** NPM package demonstrates near-perfect join compatibility:
+Validation against the authoritative **`web-features`** NPM package demonstrates near-perfect mapping compatibility:
 * **Populated Scope**: 2,034 out of 3,416 records contain a populated `web_feature` string.
-* **Placeholders**: 101 records contain a literal placeholder string (`"Missing feature"`), leaving **1,933 legitimate symbols**.
-* **Join Fidelity**: **1,923 out of 1,933 identifiers map directly to top-level exported keys in `web-features`** (e.g., `"canvas"`, `"webgpu"`, `"view-transitions"`), representing a **99.48% mapping accuracy**.
+* **Placeholders**: 101 records contain a literal placeholder string (`"Missing feature"`), leaving **1,933 legitimate web feature IDs**.
+* **Mapping Fidelity**: **1,923 out of 1,933 identifiers map directly to top-level exported keys in `web-features`** (e.g., `"canvas"`, `"webgpu"`, `"view-transitions"`), representing a **99.48% mapping accuracy**.
 
 ---
 
@@ -60,12 +60,12 @@ To bridge these API constraints without imposing massive data penalties on downs
 
 ```mermaid
 graph TD
-    API1[ChromeStatus API <br> Option 1 Verbose Chunks] -->|build/fetch.ts| DataDir[Local /data/ Layer]
-    API2[ChromeStatus API <br> Option 2 Lite Array] -->|build/fetch.ts| DataDir
+    API1[ChromeStatus API <br> Verbose Features] -->|build/fetch.ts| DataDir[Local /data/ Layer]
+    API2[ChromeStatus API <br> Basic Features Array] -->|build/fetch.ts| DataDir
     DataDir -->|Synchronous Import| Lite[catalog.features <br> Instant In-Memory Indexing]
     DataDir -->|Dynamic import()| Hydrate[catalog.getFeatureVerbose id <br> Zero-Footprint Lazy Resolution]
 ```
 
 1. **Zero-Bloat Bundling**: The library packages flat records as `data/lite.json`. Consumers construct initial collection search index sets synchronously without bundling unused JSON data.
-2. **Lazy Hydration**: When granular lifecycle history or stage approval structures are required, the class instances load absolute Option 1 verbosity dynamically from individual feature chunks (`data/features/<id>.json`).
+2. **Lazy Hydration**: When granular lifecycle history or stage approval structures are required, the class instances load verbose features dynamically from individual feature files (`data/features/<id>.json`).
 3. **Pre-Compiled OT Maps**: Extracted Origin Trial arrays (`data/active-ot-index.json`) evaluate initial signal gating requests in sub-millisecond execution loops without instantiating deep domain wrappers.

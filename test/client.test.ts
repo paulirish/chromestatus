@@ -49,7 +49,7 @@ test('ChromeStatusClient - Synchronous querying and Origin Trial indexing valida
 
   const client = new ChromeStatusClient(mockStubs, [5172548013916160, 5117755740913664], [5117755740913664]);
 
-  // 1. Find HTML-in-canvas via exact/embedded symbol or fuzzy heuristics
+  // 1. Find HTML-in-canvas via exact/embedded web feature ID or fuzzy heuristics
   const canvasFeature = client.findFeature('canvas-html');
   assert.notEqual(canvasFeature, undefined, 'Must resolve target HTML-in-canvas feature record');
   assert.equal(canvasFeature?.name, 'HTML-in-canvas');
@@ -69,15 +69,15 @@ test('ChromeStatusClient - Synchronous querying and Origin Trial indexing valida
   assert.equal(activeIds.includes('canvas-html'), true, 'Active OT web_feature list must include canvas-html');
 
   // 4. Verify complete un-truncated active feature objects accounting retrieval
-  const activeStubs = client.getActiveOriginTrials();
-  assert.equal(activeStubs.length, 2, 'getActiveOriginTrials must faithfully return all active feature objects natively');
-  assert.equal(activeStubs[0].name, 'HTML-in-canvas', 'Output collection entry matches authoritative descriptive feature name string');
+  const activeFeatures = client.getActiveOriginTrials();
+  assert.equal(activeFeatures.length, 2, 'getActiveOriginTrials must faithfully return all active feature objects natively');
+  assert.equal(activeFeatures[0].name, 'HTML-in-canvas', 'Output collection entry matches authoritative descriptive feature name string');
 
   // 5. Verify Experimental Flag gating SDK retrieval interfaces
-  const flagSymbols = client.getExperimentalFlagWebFeatureIds();
-  const flagStubs = client.getExperimentalFlagFeatures();
-  assert.equal(flagStubs.length, 1, 'getExperimentalFlagFeatures returns full un-truncated flag objects set natively');
-  assert.equal(flagStubs[0].name, 'WebMCP');
+  const flagWebFeatureIds = client.getExperimentalFlagWebFeatureIds();
+  const flagFeatures = client.getExperimentalFlagFeatures();
+  assert.equal(flagFeatures.length, 1, 'getExperimentalFlagFeatures returns full un-truncated flag objects set natively');
+  assert.equal(flagFeatures[0].name, 'WebMCP');
 });
 
 test('ChromeStatusClient - Static factory initializer loads snapshot archives dynamically', async () => {
@@ -87,7 +87,7 @@ test('ChromeStatusClient - Static factory initializer loads snapshot archives dy
     assert.equal(client.features.length > 3000, true, 'Compiled catalog array size must exceed baseline bounds');
     
     const verbose = await client.getFeatureDetailed(client.features[0].name);
-    assert.notEqual(verbose, undefined, 'Must resolve granular verbose chunk over local storage paths');
+    assert.notEqual(verbose, undefined, 'Must resolve granular verbose feature over local storage paths');
   }
 });
 
@@ -97,7 +97,7 @@ test('Origin Trial Expiration Filtering - Purges completed historical legacy exp
 
   // Locate AudioWorklet feature cleanly via descriptive string lookup
   const audioWorklet = client.findFeature('audioworklet');
-  assert.notEqual(audioWorklet, undefined, 'Must resolve target AudioWorklet feature stub');
+  assert.notEqual(audioWorklet, undefined, 'Must resolve target AudioWorklet basic feature');
   
   // Upstream trial stage ended in Chrome 65. Must evaluate as completed/inactive.
   assert.equal(
@@ -108,7 +108,7 @@ test('Origin Trial Expiration Filtering - Purges completed historical legacy exp
 
   // Locate Interest Invokers feature cleanly via descriptive string lookup
   const interestInvokers = client.findFeature('interest invokers');
-  assert.notEqual(interestInvokers, undefined, 'Must resolve target Interest Invokers feature stub');
+  assert.notEqual(interestInvokers, undefined, 'Must resolve target Interest Invokers basic feature');
 
   // Upstream trial stage ended in Chrome 137. Must evaluate as completed/inactive.
   assert.equal(
@@ -122,26 +122,26 @@ test('ChromeStatusClient - Static Compilation Overrides Map Integration', async 
   const client = await ChromeStatusClient.create();
   if (client.features.length === 0) return;
 
-  // Find HTML-in-canvas feature explicitly via its corrected override symbol "canvas-html"
+  // Find HTML-in-canvas feature explicitly via its corrected override web feature ID "canvas-html"
   const feature = client.findFeature('canvas-html');
-  assert.notEqual(feature, undefined, 'Must resolve target HTML-in-canvas feature record via corrected override symbol');
-  assert.equal(feature?.web_feature, 'canvas-html', 'Output web_feature key must map strictly to override symbol canvas-html');
+  assert.notEqual(feature, undefined, 'Must resolve target HTML-in-canvas feature record via corrected override web feature ID');
+  assert.equal(feature?.web_feature, 'canvas-html', 'Output web_feature key must map strictly to override web feature ID canvas-html');
 
-  // Ensure active Origin Trial extraction helper reflects the overridden key instead of legacy symbol
-  const activeSymbols = client.getActiveOriginTrialWebFeatureIds();
+  // Ensure active Origin Trial extraction helper reflects the overridden key instead of legacy web feature ID
+  const activeWebFeatureIds = client.getActiveOriginTrialWebFeatureIds();
   if (client.isFeatureInOriginTrial(feature!.id)) {
-    assert.equal(activeSymbols.includes('canvas-html'), true, 'Active OT symbols list must contain corrected key canvas-html');
-    assert.equal(activeSymbols.includes('canvas'), false, 'Active OT symbols list must omit legacy un-overridden symbol canvas');
+    assert.equal(activeWebFeatureIds.includes('canvas-html'), true, 'Active OT web feature IDs list must contain corrected key canvas-html');
+    assert.equal(activeWebFeatureIds.includes('canvas'), false, 'Active OT web feature IDs list must omit legacy un-overridden web feature ID canvas');
   }
 
-  // Find WebMCP feature explicitly via its corrected override capability symbol "document-modelcontext"
+  // Find WebMCP feature explicitly via its corrected override capability web feature ID "document-modelcontext"
   const webmcpOverride = client.findFeature('document-modelcontext');
-  assert.notEqual(webmcpOverride, undefined, 'Must resolve proposed WebMCP feature record via corrected override capability symbol');
+  assert.notEqual(webmcpOverride, undefined, 'Must resolve proposed WebMCP feature record via corrected override capability web feature ID');
   assert.equal(webmcpOverride?.web_feature, 'declarative-webmcp,document-modelcontext');
 
-  // Also find it via the new "declarative-webmcp" symbol
+  // Also find it via the new "declarative-webmcp" web feature ID
   const webmcpOverride2 = client.findFeature('declarative-webmcp');
-  assert.notEqual(webmcpOverride2, undefined, 'Must resolve proposed WebMCP feature record via new declarative-webmcp symbol');
+  assert.notEqual(webmcpOverride2, undefined, 'Must resolve proposed WebMCP feature record via new declarative-webmcp web feature ID');
   assert.equal(webmcpOverride2?.id, webmcpOverride?.id);
 });
 

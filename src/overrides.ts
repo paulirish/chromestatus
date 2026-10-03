@@ -1,6 +1,6 @@
 /**
  * Centralized dictionary of custom compile-time and runtime overrides mapping
- * ChromeStatus feature names to WebDX/web-features identifier symbols.
+ * ChromeStatus feature names to web feature IDs.
  *
  * Each entry patches missing or wrong ChromeStatus data. `pnpm run audit:overrides` flags
  * entries that became redundant, broken, or orphaned, and `pnpm run audit:chromestatus-edits`

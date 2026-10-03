@@ -16,7 +16,7 @@ async function main() {
     process.exit(1);
   }
 
-  console.log(`Loaded ${stubs.length} stubs. Running web-features alignment audit...`);
+  console.log(`Loaded ${stubs.length} basic features. Running web-features alignment audit...`);
   const report = AlignmentAuditor.run(stubs);
 
   console.log("==================================================================");
@@ -24,7 +24,7 @@ async function main() {
   console.log("==================================================================\n");
   
   console.log(`[Heuristic 1]: Orphaned/Dead Identifiers Detected: ${report.orphans.length}`);
-  console.log(`[Heuristic 2]: Stale/Redirected Symbols Detected: ${report.redirects.length}`);
+  console.log(`[Heuristic 2]: Stale/Redirected Web Feature IDs Detected: ${report.redirects.length}`);
   console.log(`[Heuristic 3]: Milestone Divergence Drift Detected: ${report.milestoneDrift.length}`);
   console.log(`[Heuristic 4]: Multi-Mapping Capability Collisions Detected: ${report.collisions.length}\n`);
 

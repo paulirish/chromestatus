@@ -4,7 +4,7 @@ import { ChromeStatusClient } from '../src/index.ts';
 import type { ChromeStatusFeatureStub } from '../src/types.ts';
 
 test('RedTeam Audit: Immutability & Interface Invariant Bounds', () => {
-  const baseStubs: ChromeStatusFeatureStub[] = [
+  const baseFeatures: ChromeStatusFeatureStub[] = [
     {
       id: 101,
       name: 'Immutable Interface Capability',
@@ -27,7 +27,7 @@ test('RedTeam Audit: Immutability & Interface Invariant Bounds', () => {
     }
   ];
 
-  const client = new ChromeStatusClient(baseStubs);
+  const client = new ChromeStatusClient(baseFeatures);
   const features = client.features;
 
   // 1. Assert array encapsulation safety
@@ -39,11 +39,11 @@ test('RedTeam Audit: Immutability & Interface Invariant Bounds', () => {
   // 2. Assert top-level object freezing boundaries
   assert.throws(() => {
     features[0].name = 'Hacked Target Name';
-  }, TypeError, 'Mutating frozen base stub object references must throw natively');
+  }, TypeError, 'Mutating frozen basic feature object references must throw natively');
 });
 
-test('RedTeam Audit: Sentinel Values & Unmapped Symbol Extraction Bypassing', () => {
-  const sentinelStubs: ChromeStatusFeatureStub[] = [
+test('RedTeam Audit: Sentinel Values & Unmapped Web Feature ID Extraction Bypassing', () => {
+  const sentinelFeatures: ChromeStatusFeatureStub[] = [
     {
       id: 201,
       name: 'Sentinel Feature One',
@@ -76,16 +76,16 @@ test('RedTeam Audit: Sentinel Values & Unmapped Symbol Extraction Bypassing', ()
     }
   ];
 
-  const client = new ChromeStatusClient(sentinelStubs, [201, 202]);
-  const activeSymbols = client.getActiveOriginTrialWebFeatureIds();
+  const client = new ChromeStatusClient(sentinelFeatures, [201, 202]);
+  const activeWebFeatureIds = client.getActiveOriginTrialWebFeatureIds();
 
-  assert.equal(activeSymbols.includes('Missing feature'), false, 'Literal placeholder strings must be dropped from index output maps');
-  assert.equal(activeSymbols.includes('none'), false, 'String None sentinel values must be scrubbed from lowercased symbol extractions');
-  assert.equal(activeSymbols.length, 0, 'Output subset array must evaluate as completely empty for pure sentinel collections');
+  assert.equal(activeWebFeatureIds.includes('Missing feature'), false, 'Literal placeholder strings must be dropped from index output maps');
+  assert.equal(activeWebFeatureIds.includes('none'), false, 'String None sentinel values must be scrubbed from lowercased web feature ID extractions');
+  assert.equal(activeWebFeatureIds.length, 0, 'Output subset array must evaluate as completely empty for pure sentinel collections');
 });
 
 test('RedTeam Audit: Multi-Mapping Cardinality Retention & Search Consensus', () => {
-  const multiStubs: ChromeStatusFeatureStub[] = [
+  const multiFeatures: ChromeStatusFeatureStub[] = [
     {
       id: 301,
       name: 'Accent Color Base Implementation',
@@ -127,7 +127,7 @@ test('RedTeam Audit: Multi-Mapping Cardinality Retention & Search Consensus', ()
     }
   ];
 
-  const client = new ChromeStatusClient(multiStubs);
+  const client = new ChromeStatusClient(multiFeatures);
 
   // 1. Assert multi-record extraction retrieval safety
   const matchingSet = client.findFeaturesBySymbol('accent-color');

@@ -5,17 +5,17 @@ import type { ChromeStatusFeatureStub } from '../src/types.ts';
 
 async function main() {
   const litePath = path.resolve(process.cwd(), 'data', 'lite.json');
-  let stubs: ChromeStatusFeatureStub[] = [];
+  let features: ChromeStatusFeatureStub[] = [];
   
   try {
     const text = await fs.readFile(litePath, 'utf8');
-    stubs = JSON.parse(text);
+    features = JSON.parse(text);
   } catch {
     console.error('Error: Compiled snapshot data/lite.json not found. Please run `pnpm run fetch` first.');
     process.exit(1);
   }
 
-  const legitimateStubs = stubs.filter(f => 
+  const legitimateFeatures = features.filter(f => 
     f.web_feature && 
     typeof f.web_feature === 'string' && 
     f.web_feature !== 'Missing feature' && 
@@ -23,35 +23,35 @@ async function main() {
   );
 
   const rows: {
-    symbol: string;
+    webFeatureId: string;
     webName: string;
     chromeId: number;
     chromeName: string;
   }[] = [];
 
-  for (const feature of legitimateStubs) {
-    const symbol = feature.web_feature!;
-    const matchedWeb = Object.hasOwn(webFeatures, symbol) 
-      ? webFeatures[symbol] 
+  for (const feature of legitimateFeatures) {
+    const webFeatureId = feature.web_feature!;
+    const matchedWeb = Object.hasOwn(webFeatures, webFeatureId) 
+      ? webFeatures[webFeatureId] 
       : undefined;
 
     rows.push({
-      symbol,
+      webFeatureId,
       webName: matchedWeb?.name ?? '⚠️ (Unmatched in web-features)',
       chromeId: feature.id,
       chromeName: feature.name
     });
   }
 
-  rows.sort((a, b) => a.symbol.localeCompare(b.symbol));
+  rows.sort((a, b) => a.webFeatureId.localeCompare(b.webFeatureId));
 
-  console.log('| Web Feature Symbol | Web Feature Name | Chrome Feature Name |');
+  console.log('| Web Feature ID | Web Feature Name | Chrome Feature Name |');
   console.log('| :--- | :--- | :--- |');
 
   for (const r of rows) {
     const safeWebName = r.webName.replace(/\|/g, '\\|').replace(/\n/g, ' ');
     const safeChromeName = r.chromeName.replace(/\|/g, '\\|').replace(/\n/g, ' ');
-    console.log(`| \`${r.symbol}\` | ${safeWebName} | [${safeChromeName}](https://chromestatus.com/feature/${r.chromeId}) |`);
+    console.log(`| \`${r.webFeatureId}\` | ${safeWebName} | [${safeChromeName}](https://chromestatus.com/feature/${r.chromeId}) |`);
   }
 }
 

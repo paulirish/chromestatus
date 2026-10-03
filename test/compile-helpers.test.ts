@@ -54,7 +54,7 @@ test('evaluateActiveOriginTrial - basic cases', () => {
   assert.equal(evaluateActiveOriginTrial(feature3, activeStableMilestone, otApiActiveFeatureIds, otApiActiveTrialNames), false);
 });
 
-test('evaluateActiveOriginTrial - empirical checks (no live OT API match)', () => {
+test('evaluateActiveOriginTrial - checks without live OT API match', () => {
   const activeStableMilestone = 120;
   const emptyIds = new Set<number>();
   const emptyNames = new Set<string>();
@@ -103,8 +103,8 @@ test('evaluateActiveOriginTrial - baseline year exclusion bounds', () => {
     ]
   };
 
-  const mockBaselineResolver = (symbol: string) => {
-    if (symbol === 'canvas-html' || symbol === 'canvas') return 2015;
+  const mockBaselineResolver = (webFeatureId: string) => {
+    if (webFeatureId === 'canvas-html' || webFeatureId === 'canvas') return 2015;
     return undefined;
   };
 
@@ -151,10 +151,10 @@ test('assignWebFeaturesAndBaselineYears', () => {
     { id: 3, name: 'Feature B', web_feature: 'Missing feature' }
   ];
 
-  const mockBaselineResolver = (symbol: string) => {
-    if (symbol === 'canvas-html') return 2026;
-    if (symbol === 'feature-a') return 2024;
-    if (symbol === 'feature-b') return 2025;
+  const mockBaselineResolver = (webFeatureId: string) => {
+    if (webFeatureId === 'canvas-html') return 2026;
+    if (webFeatureId === 'feature-a') return 2024;
+    if (webFeatureId === 'feature-b') return 2025;
     return undefined;
   };
 

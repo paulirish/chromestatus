@@ -7,8 +7,8 @@ import { CUSTOM_WEB_FEATURE_OVERRIDES } from '../src/overrides.ts';
 
 export interface VerifiedFeatureMapping {
   featureName: string;
-  verifiedWebFeatureSymbol: string;
-  webdxFeatureName: string;
+  verifiedWebFeatureId: string;
+  webFeatureName: string;
   confidenceMetrics: {
     jaccardScore: number;
     overlapScore: number;
@@ -28,15 +28,15 @@ async function main() {
 
   const features: any[] = JSON.parse(featuresText);
 
-  // Build candidate WebDX collection
-  const webdxFeatures: { symbol: string; name: string; tokens: Set<string> }[] = [];
-  for (const [symbol, wfData] of Object.entries(webFeatures)) {
-    if (wfData.kind !== 'feature' || MONOLITHIC_SYMBOLS.has(symbol) || symbol.length <= 2) continue;
+  // Build candidate web feature collection
+  const candidateFeatures: { id: string; name: string; tokens: Set<string> }[] = [];
+  for (const [webFeatureId, wfData] of Object.entries(webFeatures)) {
+    if (wfData.kind !== 'feature' || MONOLITHIC_SYMBOLS.has(webFeatureId) || webFeatureId.length <= 2) continue;
     const desc = wfData.description || '';
     const name = wfData.name || '';
     const tokens = tokenize(`${name} ${desc}`);
     if (tokens.size > 0) {
-      webdxFeatures.push({ symbol, name, tokens });
+      candidateFeatures.push({ id: webFeatureId, name, tokens });
     }
   }
 
@@ -57,10 +57,10 @@ async function main() {
 
     let bestJaccard = -1;
     let bestOverlap = -1;
-    let bestTarget: typeof webdxFeatures[0] | null = null;
+    let bestTarget: typeof candidateFeatures[0] | null = null;
     let bestIntersection: string[] = [];
 
-    for (const target of webdxFeatures) {
+    for (const target of candidateFeatures) {
       const jScore = jaccardIndex(summaryTokens, target.tokens);
       const oScore = overlapCoefficient(summaryTokens, target.tokens);
 
@@ -73,14 +73,14 @@ async function main() {
       }
     }
 
-    // Custom overrides or specific known WebDX alignment logic for subset partition keys
-    let finalSymbol = bestTarget?.symbol || '';
+    // Custom overrides or specific known web feature alignment logic for subset partition keys
+    let finalWebFeatureId = bestTarget?.id || '';
     let finalWfName = bestTarget?.name || '';
 
     // Special high-precision contextual heuristic adjustment for exact known capability tokens
     const lowerName = feature.name.toLowerCase();
     if (lowerName.includes('chips') || lowerName.includes('cookies having independent partitioned state')) {
-      finalSymbol = 'partitioned-cookies';
+      finalWebFeatureId = 'partitioned-cookies';
       finalWfName = 'Partitioned cookies';
       bestOverlap = 0.8;
       bestJaccard = 0.25;
@@ -89,16 +89,16 @@ async function main() {
     // High-confidence consensus threshold criteria
     const isHighConfidence = bestJaccard >= 0.15 || bestOverlap >= 0.52;
     
-    if (isHighConfidence && finalSymbol && bestIntersection.length >= 1) {
+    if (isHighConfidence && finalWebFeatureId && bestIntersection.length >= 1) {
       // Suppress generic layout/display false positives
-      if (finalSymbol === 'display' || finalSymbol === 'case-sensitive-attributes' || finalSymbol === 'scrollbar-color') {
+      if (finalWebFeatureId === 'display' || finalWebFeatureId === 'case-sensitive-attributes' || finalWebFeatureId === 'scrollbar-color') {
         continue;
       }
 
       verifiedResults.push({
         featureName: feature.name,
-        verifiedWebFeatureSymbol: finalSymbol,
-        webdxFeatureName: finalWfName,
+        verifiedWebFeatureId: finalWebFeatureId,
+        webFeatureName: finalWfName,
         confidenceMetrics: {
           jaccardScore: parseFloat(bestJaccard.toFixed(4)),
           overlapScore: parseFloat(bestOverlap.toFixed(4))

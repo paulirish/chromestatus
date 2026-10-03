@@ -2,10 +2,10 @@ import { features as defaultWebFeatures } from 'web-features';
 import { CUSTOM_WEB_FEATURE_OVERRIDES } from './overrides.ts';
 
 /**
- * Extracts the baseline implementation year for a given WebDX symbol.
+ * Extracts the baseline implementation year for a given web feature ID.
  */
-export function resolveWebFeatureBaselineYear(symbol: string, webFeaturesCatalog: any = defaultWebFeatures): number | undefined {
-  const webData: any = Object.hasOwn(webFeaturesCatalog, symbol) ? webFeaturesCatalog[symbol] : undefined;
+export function resolveWebFeatureBaselineYear(webFeatureId: string, webFeaturesCatalog: any = defaultWebFeatures): number | undefined {
+  const webData: any = Object.hasOwn(webFeaturesCatalog, webFeatureId) ? webFeaturesCatalog[webFeatureId] : undefined;
   if (!webData) return undefined;
 
   let targetData = webData;
@@ -23,7 +23,7 @@ export function resolveWebFeatureBaselineYear(symbol: string, webFeaturesCatalog
 
 /**
  * ==============================================================================
- * CRITICAL EMPIRICAL FILTERING HEURISTICS: EVALUATING GENUINE ACTIVE ORIGIN TRIALS
+ * CRITICAL FILTERING HEURISTICS: EVALUATING GENUINE ACTIVE ORIGIN TRIALS
  * ==============================================================================
  * Upstream database architecture exhibits specific historical nuances and process gaps:
  * 1. Historical Legacy Persistence: Stage 150 objects are permanently retained inside a feature's
@@ -46,7 +46,7 @@ export function evaluateActiveOriginTrial(
   activeStableMilestone: number,
   otApiActiveFeatureIds: Set<number>,
   otApiActiveTrialNames: Set<string>,
-  baselineYearResolver: (symbol: string) => number | undefined = resolveWebFeatureBaselineYear
+  baselineYearResolver: (webFeatureId: string) => number | undefined = resolveWebFeatureBaselineYear
 ): boolean {
   let isGenuinelyActive = false;
   const statusText = typeof f.browsers?.chrome?.status?.text === 'string' ? f.browsers.chrome.status.text.toLowerCase() : '';
@@ -128,9 +128,9 @@ export function evaluateActiveOriginTrial(
 
   // Final validation bound 2: Evaluate absolute calendar baseline support year
   if (isGenuinelyActive && f && typeof f.name === 'string') {
-    const targetSym = CUSTOM_WEB_FEATURE_OVERRIDES[f.name.trim()] || (typeof f.web_feature === 'string' ? f.web_feature.trim() : '');
-    if (targetSym) {
-      const baselineYear = baselineYearResolver(targetSym);
+    const targetWebFeatureId = CUSTOM_WEB_FEATURE_OVERRIDES[f.name.trim()] || (typeof f.web_feature === 'string' ? f.web_feature.trim() : '');
+    if (targetWebFeatureId) {
+      const baselineYear = baselineYearResolver(targetWebFeatureId);
       if (baselineYear !== undefined && baselineYear < 2024) {
         isGenuinelyActive = false;
       }
@@ -145,7 +145,7 @@ export function evaluateActiveOriginTrial(
  */
 export function evaluateBehindFlag(
   f: any,
-  baselineYearResolver: (symbol: string) => number | undefined = resolveWebFeatureBaselineYear
+  baselineYearResolver: (webFeatureId: string) => number | undefined = resolveWebFeatureBaselineYear
 ): boolean {
   let isBehindFlag = false;
   const statusText = typeof f.browsers?.chrome?.status?.text === 'string' ? f.browsers.chrome.status.text.toLowerCase() : '';
@@ -168,9 +168,9 @@ export function evaluateBehindFlag(
     if (isShippedOrDead) {
       isBehindFlag = false;
     } else if (f && typeof f.name === 'string') {
-      const targetSym = CUSTOM_WEB_FEATURE_OVERRIDES[f.name.trim()] || (typeof f.web_feature === 'string' ? f.web_feature.trim() : '');
-      if (targetSym) {
-        const baselineYear = baselineYearResolver(targetSym);
+      const targetWebFeatureId = CUSTOM_WEB_FEATURE_OVERRIDES[f.name.trim()] || (typeof f.web_feature === 'string' ? f.web_feature.trim() : '');
+      if (targetWebFeatureId) {
+        const baselineYear = baselineYearResolver(targetWebFeatureId);
         if (baselineYear !== undefined && baselineYear < 2024) {
           isBehindFlag = false;
         }
@@ -220,26 +220,26 @@ export function resolveMovedWebFeatureIds(value: string, webFeaturesCatalog: any
 }
 
 /**
- * Maps WebDX symbols and resolves max baseline support years.
+ * Maps web feature IDs and resolves max baseline support years.
  */
 export function assignWebFeaturesAndBaselineYears(
   features: any[],
-  baselineYearResolver: (symbol: string) => number | undefined = resolveWebFeatureBaselineYear,
+  baselineYearResolver: (webFeatureId: string) => number | undefined = resolveWebFeatureBaselineYear,
   webFeaturesCatalog: any = defaultWebFeatures
 ): Map<number, string> {
   const webFeatureMap = new Map<number, string>();
   for (const f of features) {
     if (f && typeof f.name === 'string') {
-      const overrideSym = CUSTOM_WEB_FEATURE_OVERRIDES[f.name.trim()];
-      if (overrideSym) {
-        f.web_feature = overrideSym;
-        webFeatureMap.set(f.id, overrideSym);
+      const overrideId = CUSTOM_WEB_FEATURE_OVERRIDES[f.name.trim()];
+      if (overrideId) {
+        f.web_feature = overrideId;
+        webFeatureMap.set(f.id, overrideId);
       } else if (f.web_feature && typeof f.web_feature === 'string') {
-        const cleanSym = f.web_feature.trim();
-        if (cleanSym !== '' && cleanSym !== 'Missing feature' && cleanSym.toLowerCase() !== 'none') {
-          const currentSym = resolveMovedWebFeatureIds(cleanSym, webFeaturesCatalog);
-          f.web_feature = currentSym;
-          webFeatureMap.set(f.id, currentSym);
+        const cleanId = f.web_feature.trim();
+        if (cleanId !== '' && cleanId !== 'Missing feature' && cleanId.toLowerCase() !== 'none') {
+          const currentId = resolveMovedWebFeatureIds(cleanId, webFeaturesCatalog);
+          f.web_feature = currentId;
+          webFeatureMap.set(f.id, currentId);
         } else {
           delete f.web_feature;
         }
@@ -247,12 +247,12 @@ export function assignWebFeaturesAndBaselineYears(
         delete f.web_feature;
       }
 
-      const sym = f.web_feature;
-      if (sym) {
-        const syms = sym.split(',').map((s: string) => s.trim()).filter(Boolean);
+      const webFeatureStr = f.web_feature;
+      if (webFeatureStr) {
+        const ids = webFeatureStr.split(',').map((s: string) => s.trim()).filter(Boolean);
         let maxYear: number | undefined = undefined;
-        for (const s of syms) {
-          const year = baselineYearResolver(s);
+        for (const id of ids) {
+          const year = baselineYearResolver(id);
           if (year !== undefined) {
             if (maxYear === undefined || year > maxYear) {
               maxYear = year;

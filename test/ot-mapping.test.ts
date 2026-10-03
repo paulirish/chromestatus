@@ -22,17 +22,17 @@ test('OT Mapping JSON Validation', async () => {
   // 3. Verify unmapped key is present and is an array
   assert.equal(Array.isArray(data.unmapped), true, 'unmapped property must be an array');
   
-  // 4. Verify mapped symbols exist and have valid chromestatus_url
+  // 4. Verify mapped web feature IDs exist and have valid chromestatus_url
   const keys = Object.keys(data).filter(k => k !== 'unmapped');
-  assert.equal(keys.length > 0, true, 'Must have at least one mapped symbol key');
+  assert.equal(keys.length > 0, true, 'Must have at least one mapped web feature ID key');
 
   for (const key of keys) {
-    assert.equal(key, key.toLowerCase(), `Mapped symbol key "${key}" must be lowercase`);
+    assert.equal(key, key.toLowerCase(), `Mapped web feature ID key "${key}" must be lowercase`);
     const value = data[key];
-    assert.equal(typeof value, 'object', `Mapped symbol value for "${key}" must be an object`);
-    assert.notEqual(value, null, `Mapped symbol value for "${key}" must not be null`);
-    assert.equal(typeof value.chromestatus_url, 'string', `Mapped symbol "${key}" must contain chromestatus_url string`);
-    assert.match(value.chromestatus_url, /^https:\/\/chromestatus\.com\/feature\/\d+$/, `Mapped symbol "${key}" must have a valid ChromeStatus URL format`);
+    assert.equal(typeof value, 'object', `Mapped web feature ID value for "${key}" must be an object`);
+    assert.notEqual(value, null, `Mapped web feature ID value for "${key}" must not be null`);
+    assert.equal(typeof value.chromestatus_url, 'string', `Mapped web feature ID "${key}" must contain chromestatus_url string`);
+    assert.match(value.chromestatus_url, /^https:\/\/chromestatus\.com\/feature\/\d+$/, `Mapped web feature ID "${key}" must have a valid ChromeStatus URL format`);
   }
 
   // 5. Verify unmapped array elements
@@ -45,6 +45,6 @@ test('OT Mapping JSON Validation', async () => {
   }
 
   // 6. Verify specific expected mapped keys are present
-  assert.ok('canvas-html' in data, 'canvas-html must be a mapped symbol key');
-  assert.ok('declarative-webmcp' in data, 'declarative-webmcp must be a mapped symbol key');
+  assert.ok('canvas-html' in data, 'canvas-html must be a mapped web feature ID key');
+  assert.ok('declarative-webmcp' in data, 'declarative-webmcp must be a mapped web feature ID key');
 });

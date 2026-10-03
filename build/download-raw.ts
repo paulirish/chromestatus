@@ -59,14 +59,14 @@ async function main() {
     console.warn("Warning: Failed to fetch dynamic release milestones from Chromium schedule API. Skipping cache write.", err);
   }
 
-  // 3. Lite features
-  console.log("Fetching Lite array data...");
-  const option2Data = await fetchCleanJson('https://chromestatus.com/features.json');
+  // 3. Basic features
+  console.log("Fetching basic feature array data...");
+  const basicData = await fetchCleanJson('https://chromestatus.com/features.json');
   await fs.writeFile(
     path.join(rawDir, 'features-lite.json'),
-    JSON.stringify(option2Data, null, 2)
+    JSON.stringify(basicData, null, 2)
   );
-  console.log(`Saved raw lite features to data/raw/features-lite.json`);
+  console.log(`Saved raw basic features to data/raw/features-lite.json`);
 
   // 4. Live Authoritative Origin Trials API feed
   console.log("Fetching live authoritative Google Chrome Origin Trials API payload...");

@@ -170,7 +170,7 @@ test('Conformance Auditor - Coarse Mapping Case', () => {
     id: 2,
     name: "'pagereveal' event",
     summary: "fires when a document is revealed",
-    web_feature: "view-transitions", // Coarse parent symbol
+    web_feature: "view-transitions", // Coarse parent web feature ID
     browsers: {
       chrome: {
         desktop: 123
@@ -197,7 +197,7 @@ test('Conformance Auditor - Coarse Mapping Case', () => {
 });
 
 test('Alignment Auditor - Diagnostics', () => {
-  const mockStubs: ChromeStatusFeatureStub[] = [
+  const mockFeatures: ChromeStatusFeatureStub[] = [
     {
       id: 10,
       name: "Orphan Feature",
@@ -278,7 +278,7 @@ test('Alignment Auditor - Diagnostics', () => {
     }
   ];
 
-  const report = AlignmentAuditor.run(mockStubs);
+  const report = AlignmentAuditor.run(mockFeatures);
 
   assert.deepEqual({
     orphans: report.orphans.map(({ featureId, ...rest }) => rest),

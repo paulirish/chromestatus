@@ -83,10 +83,10 @@ export class ConformanceAuditor {
       // Check if the feature is shipped/enabled on desktop
       const csMilestone = data.browsers?.chrome?.desktop;
       if (csMilestone && typeof csMilestone === 'number' && csMilestone > 108) {
-        const symbol = data.web_feature?.trim();
+        const webFeatureId = data.web_feature?.trim();
         
-        if (symbol && symbol !== 'Missing feature' && symbol !== '') {
-          let wfFeature = (webFeatures as any)[symbol];
+        if (webFeatureId && webFeatureId !== 'Missing feature' && webFeatureId !== '') {
+          let wfFeature = (webFeatures as any)[webFeatureId];
           if (wfFeature && wfFeature.kind === 'moved' && typeof wfFeature.redirect_target === 'string') {
             wfFeature = (webFeatures as any)[wfFeature.redirect_target];
           }
@@ -99,7 +99,7 @@ export class ConformanceAuditor {
             const recordStub = {
               id: data.id,
               name: data.name,
-              symbol,
+              symbol: webFeatureId,
               csMilestone,
               wfMilestone: wfMilestone ? `M${wfMilestone}` : 'unsupported',
             };
@@ -164,23 +164,23 @@ export class ConformanceAuditor {
 
             // Categorize based on alignment
             if (wfMilestone !== null) {
-              // 1. Aligned: CS and BCD agree, and empirical tests confirm support at/before that milestone
+              // 1. Aligned: CS and BCD agree, and collector tests confirm support at/before that milestone
               if (csMilestone === wfMilestone && (isMilestoneInEmpiricalRange || isEarlyEmpiricalPass)) {
                 aligned.push(record);
               }
-              // 2. ChromeStatus Stale: BCD and Empirical agree (or empirical is earlier), but CS is different
+              // 2. ChromeStatus Stale: BCD and collector agree (or collector is earlier), but CS is different
               else if ((wfMilestone === minEmpVersion || isEarlyEmpiricalPass) && csMilestone !== wfMilestone) {
                 csStale.push(record);
               }
-              // 3. WebDX Coarse Mapping: BCD is earlier than the earliest empirical passing test
+              // 3. Coarse Mapping: BCD is earlier than the earliest collector passing test
               else if (wfMilestone < minEmpVersion) {
                 coarseMapping.push(record);
               }
-              // 4. Static BCD Lagging: Empirical tests passed at/before CS milestone, but BCD is later
+              // 4. Static BCD Lagging: Collector tests passed at/before CS milestone, but BCD is later
               else if (minEmpVersion <= csMilestone && wfMilestone > csMilestone) {
                 bcdLagging.push(record);
               }
-              // 5. Flag Gaps / Collector Late Tests: Empirical tests passed later than both CS and BCD records
+              // 5. Flag Gaps / Collector Late Tests: Collector tests passed later than both CS and BCD records
               else if (minEmpVersion > csMilestone && minEmpVersion > wfMilestone) {
                 flagGaps.push(record);
               }

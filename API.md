@@ -160,7 +160,7 @@ The service exposes several additional targeted routes under `/api/v0/` for revi
   * `GET /api/v0/feature_links_summary`: Aggregates health metrics and dead-link counts across tracked ecosystem URLs.
   * `GET /api/v0/features/<id>/wpt-coverage-analysis`: Serves Web Platform Tests (WPT) interoperability and coverage evaluation reports.
 * **Taxonomies & Enumerations**
-  * `GET /api/v0/web_feature_ids`: Provides the list of valid WebDX Baseline feature identifiers.
+  * `GET /api/v0/web_feature_ids`: Provides the list of valid web feature IDs.
   * `GET /api/v0/webdxfeatures`: Lists WebDX feature mappings and associated UseCounter metrics.
   * `GET /api/v0/blinkcomponents`: Enumerates Buganizer/Blink component directories and subscribers.
   * `GET /api/v0/origintrials`: Retrieves active configuration metrics for running Origin Trials.

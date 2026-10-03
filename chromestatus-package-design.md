@@ -8,23 +8,23 @@ Designed in strict adherence to the **Manifesto of Engineering Taste**, this pac
 
 ## 1. Architecture & Data Delivery Strategy
 
-Bundling a monolithic 55MB JSON payload (`features-option1.json`) into client-side or serverless environments causes severe memory bloat and execution latency. To solve this, the package employs a **Hybrid Hydration Architecture**:
+Bundling a monolithic 55MB JSON payload (`features-verbose.json`) into client-side or serverless environments causes severe memory bloat and execution latency. To solve this, the package employs a **Hybrid Hydration Architecture**:
 
 ```mermaid
 graph TD
     Client[Consumer Application] -->|1. Sync Init| Lite[@chromestatus/data/lite.json <br> ~8.9MB Flat Array]
     Client -->|2. Async Query| Hydration[catalog.getFeatureVerbose 'canvas']
-    Hydration -->|Dynamic ESM Import| VerboseChunk[@chromestatus/data/features/5172548013916160.json <br> ~20KB Granular Stage Data]
+    Hydration -->|Dynamic ESM Import| VerboseFile[@chromestatus/data/features/5172548013916160.json <br> ~20KB Granular Stage Data]
 ```
 
 ### Packaging & Splitting Mechanics
 At build/publish time, the source data is processed using native `Object.groupBy()` into two distinct layers exposed via `package.json` subpath exports:
 
 1. **Primary Entrypoint (`@chromestatus/data/lite`)**:
-   * Flattens Option 2 into an optimized ~8.9MB array containing core fields (`id`, `name`, `web_feature`, basic browser flags).
+   * Flattens basic features into an optimized ~8.9MB array containing core fields (`id`, `name`, `web_feature`, basic browser flags).
    * Powers immediate synchronous lookups and initial catalog construction.
-2. **Granular Chunks (`@chromestatus/data/features/*`)**:
-   * Individual JSON files mapped by feature `id` containing absolute Option 1 verbosity (full `stages` array, custom fields, extensive URLs).
+2. **Granular Feature Files (`@chromestatus/data/features/*`)**:
+   * Individual JSON files mapped by feature `id` containing verbose features (full `stages` array, custom fields, extensive URLs).
    * Loaded strictly on-demand at runtime via dynamic `import()` to guarantee perfect bundler tree-shaking.
 
 ---
@@ -75,12 +75,12 @@ export class OriginTrialWrapper {
   }
 
   /**
-   * Evaluates active OT status empirically.
+   * Evaluates active OT status.
    * Checks granular stage rules first, falling back to flat legacy browser flags.
    */
   get isActive(): boolean {
     if (this.#otStage) {
-      // Empirical validation: presence of an active backend Trial ID indicates configuration
+      // Validation: presence of an active backend Trial ID indicates configuration
       return Object.hasOwn(this.#otStage, 'origin_trial_id') && !!this.#otStage.origin_trial_id;
     }
     // Fallback for Lite instances lacking granular stages
@@ -211,21 +211,21 @@ export class ChromeStatusCatalog {
   }
 
   /**
-   * Hydrates granular Option 1 stage metadata dynamically for a specific feature.
-   * Adheres to BAN TOCTOU rules by importing directly and catching missing chunk errors.
+   * Hydrates granular verbose feature stage metadata dynamically for a specific feature.
+   * Adheres to BAN TOCTOU rules by importing directly and catching missing feature file errors.
    */
   async getFeatureVerbose(symbolOrId: string | number): Promise<FeatureWrapper | undefined> {
     const baseFeature = this.getFeature(symbolOrId);
     if (!baseFeature) return undefined;
 
     try {
-      // Direct runtime chunk hydration mapping to the feature ID
+      // Direct runtime feature file hydration mapping to the feature ID
       const verboseData = await import(`@chromestatus/data/features/${baseFeature.id}.json`, { 
         with: { type: 'json' } 
       });
       return new FeatureWrapper(verboseData.default);
     } catch (err) {
-      // Graceful fallback if granular chunk is missing for legacy entities
+      // Graceful fallback if granular feature file is missing for legacy entities
       return baseFeature;
     }
   }
@@ -279,7 +279,7 @@ async function verifyFeatureStatus() {
   // 1. Fast synchronous initialization (~8.9MB payload)
   const catalog = await ChromeStatusCatalog.initLite();
 
-  // 2. Hydrate highly specific feature metadata dynamically (~20KB individual chunk)
+  // 2. Hydrate highly specific feature metadata dynamically (~20KB individual file)
   const canvasFeature = await catalog.getFeatureVerbose('canvas');
 
   if (!canvasFeature) {

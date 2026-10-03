@@ -21,34 +21,34 @@ export class AlignmentAuditor {
       collisions: []
     };
 
-    const symbolGroupings = new Map<string, ChromeStatusFeatureStub[]>();
+    const webFeatureIdGroupings = new Map<string, ChromeStatusFeatureStub[]>();
 
     for (const feature of candidateStubs) {
-      const symbol = feature.web_feature!.trim();
+      const webFeatureId = feature.web_feature!.trim();
       
-      if (!symbolGroupings.has(symbol)) {
-        symbolGroupings.set(symbol, []);
+      if (!webFeatureIdGroupings.has(webFeatureId)) {
+        webFeatureIdGroupings.set(webFeatureId, []);
       }
-      symbolGroupings.get(symbol)!.push(feature);
+      webFeatureIdGroupings.get(webFeatureId)!.push(feature);
 
       // Heuristic 1: Orphaned / Dead Identifiers
-      if (!Object.hasOwn(webFeatures, symbol)) {
+      if (!Object.hasOwn(webFeatures, webFeatureId)) {
         report.orphans.push({
           featureId: feature.id,
           featureName: feature.name,
-          staleSymbol: symbol
+          staleSymbol: webFeatureId
         });
         continue;
       }
 
-      const webData: any = webFeatures[symbol];
+      const webData: any = webFeatures[webFeatureId];
 
       // Heuristic 2: Stale / Redirected Identifiers
       if (webData?.kind === 'moved') {
         report.redirects.push({
           featureId: feature.id,
           featureName: feature.name,
-          fromSymbol: symbol,
+          fromSymbol: webFeatureId,
           kind: 'moved',
           target: webData.redirect_target
         });
@@ -56,7 +56,7 @@ export class AlignmentAuditor {
         report.redirects.push({
           featureId: feature.id,
           featureName: feature.name,
-          fromSymbol: symbol,
+          fromSymbol: webFeatureId,
           kind: 'split',
           target: webData.redirect_targets
         });
@@ -74,7 +74,7 @@ export class AlignmentAuditor {
             report.milestoneDrift.push({
               featureId: feature.id,
               featureName: feature.name,
-              symbol,
+              symbol: webFeatureId,
               csMilestone: `M${csM}`,
               wfMilestone: `M${wfM}`
             });
@@ -84,10 +84,10 @@ export class AlignmentAuditor {
     }
 
     // Heuristic 4: Capability Collisions
-    for (const [symbol, list] of symbolGroupings) {
+    for (const [webFeatureId, list] of webFeatureIdGroupings) {
       if (list.length > 1) {
         report.collisions.push({
-          symbol,
+          symbol: webFeatureId,
           featureIds: list.map(f => f.id),
           featureNames: list.map(f => f.name)
         });

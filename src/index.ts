@@ -7,7 +7,7 @@ export * from './types.ts';
 
 interface SearchIndexRecord {
   id: number;
-  symbol?: string; // lowercased and normalized symbol
+  webFeatureId?: string; // lowercased and normalized web feature ID
   stub: Readonly<ChromeStatusFeatureStub>;
   nameTokens?: Set<string>; // updated to Set<string> for unified tokenization
 }
@@ -48,16 +48,16 @@ export class ChromeStatusClient {
       this.idMap.set(stub.id, stub);
       
       // Enforce consistent lowercase normalization while explicitly filtering out sentinel defaults
-      const rawSym = stub.web_feature?.trim();
-      const symbols = rawSym && rawSym !== 'Missing feature' && rawSym.toLowerCase() !== 'none'
-        ? rawSym.toLowerCase().split(',').map(s => s.trim()).filter(Boolean)
+      const rawFeatureId = stub.web_feature?.trim();
+      const webFeatureIds = rawFeatureId && rawFeatureId !== 'Missing feature' && rawFeatureId.toLowerCase() !== 'none'
+        ? rawFeatureId.toLowerCase().split(',').map(s => s.trim()).filter(Boolean)
         : [];
 
-      if (symbols.length > 0) {
-        for (const symbol of symbols) {
+      if (webFeatureIds.length > 0) {
+        for (const webFeatureId of webFeatureIds) {
           this.searchIndex.push({
             id: stub.id,
-            symbol,
+            webFeatureId,
             stub
           });
         }
@@ -144,7 +144,7 @@ export class ChromeStatusClient {
   }
 
   /**
-   * Locates a specific feature cleanly by exact integer ID, web_feature symbol, or descriptive tokens.
+   * Locates a specific feature cleanly by exact integer ID, web feature ID, or descriptive tokens.
    */
   findFeature(query: string | number): Readonly<ChromeStatusFeatureStub> | undefined {
     if (typeof query === 'number') {
@@ -155,13 +155,13 @@ export class ChromeStatusClient {
     const queryTokens = tokenize(clean);
     if (queryTokens.size === 0) return undefined;
 
-    // 1. Exact symbol match prioritization
-    const exact = this.searchIndex.find(r => r.symbol === clean);
+    // 1. Exact web feature ID match prioritization
+    const exact = this.searchIndex.find(r => r.webFeatureId === clean);
     if (exact) return exact.stub;
 
-    // 2. Full symbol word containment (preventing broad substring hijacking)
-    const tokenMatchedSymbol = this.searchIndex.find(r => r.symbol && r.symbol.length >= 3 && queryTokens.has(r.symbol));
-    if (tokenMatchedSymbol) return tokenMatchedSymbol.stub;
+    // 2. Full web feature ID word containment (preventing broad substring hijacking)
+    const tokenMatchedId = this.searchIndex.find(r => r.webFeatureId && r.webFeatureId.length >= 3 && queryTokens.has(r.webFeatureId));
+    if (tokenMatchedId) return tokenMatchedId.stub;
 
     // 3. Strict descriptive multi-word token consensus checks evaluated using lazy token caching
     const matched = this.searchIndex.find(r => {
@@ -187,13 +187,13 @@ export class ChromeStatusClient {
   }
 
   /**
-   * Locates all matching feature records sharing a target web_feature string symbol.
+   * Locates all matching feature records sharing a target web feature ID.
    * Guarantees absolute retrieval correctness for external identifiers mapping to multiple catalog entries.
    */
   findFeaturesBySymbol(symbol: string): ReadonlyArray<ChromeStatusFeatureStub> {
     const clean = symbol.trim().toLowerCase();
     return this.searchIndex
-      .filter(r => r.symbol === clean)
+      .filter(r => r.webFeatureId === clean)
       .map(r => r.stub);
   }
 
@@ -219,8 +219,8 @@ export class ChromeStatusClient {
     const results = new Set<string>();
     for (const id of this.originTrialIds) {
       const record = this.searchIndex.find(r => r.id === id);
-      if (record?.symbol) {
-        results.add(record.symbol);
+      if (record?.webFeatureId) {
+        results.add(record.webFeatureId);
       }
     }
     return Array.from(results);
@@ -234,8 +234,8 @@ export class ChromeStatusClient {
     const results = new Set<string>();
     for (const id of this.experimentalFlagIds) {
       const record = this.searchIndex.find(r => r.id === id);
-      if (record?.symbol) {
-        results.add(record.symbol);
+      if (record?.webFeatureId) {
+        results.add(record.webFeatureId);
       }
     }
     return Array.from(results);
@@ -313,7 +313,7 @@ export class ChromeStatusClient {
   }
 
   /**
-   * Resolves absolute verbose single-feature chunk file metadata over local storage pathways dynamically.
+   * Resolves absolute verbose feature metadata over local storage pathways dynamically.
    * Intercepts explicit targeted lookup exceptions cleanly while bubbling operational infrastructure/syntax failures.
    */
   async getFeatureDetailed(query: string | number): Promise<ChromeStatusFeatureDetailed | undefined> {

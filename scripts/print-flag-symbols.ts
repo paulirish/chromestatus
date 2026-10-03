@@ -7,18 +7,18 @@ async function main() {
   console.log("   AUTHORITATIVE EXPERIMENTAL WEB PLATFORM FLAG INVENTORY");
   console.log("==================================================================\n");
 
-  const flagStubs = client.getExperimentalFlagFeatures();
-  const mappedRecords = flagStubs.filter(f => f.web_feature && f.web_feature.trim() !== '' && f.web_feature.toLowerCase() !== 'none' && f.web_feature !== 'Missing feature');
-  const unmappedRecords = flagStubs.filter(f => !f.web_feature || f.web_feature.trim() === '' || f.web_feature.toLowerCase() === 'none' || f.web_feature === 'Missing feature');
+  const flagFeatures = client.getExperimentalFlagFeatures();
+  const mappedRecords = flagFeatures.filter(f => f.web_feature && f.web_feature.trim() !== '' && f.web_feature.toLowerCase() !== 'none' && f.web_feature !== 'Missing feature');
+  const unmappedRecords = flagFeatures.filter(f => !f.web_feature || f.web_feature.trim() === '' || f.web_feature.toLowerCase() === 'none' || f.web_feature === 'Missing feature');
 
-  const flagSymbols = client.getExperimentalFlagWebFeatureIds();
+  const flagWebFeatureIds = client.getExperimentalFlagWebFeatureIds();
   
-  console.log(`[Section 1]: Verified Mapped WebDX Symbols (${flagSymbols.length} unique identifiers mapped across ${mappedRecords.length} feature records):\n`);
-  console.log(JSON.stringify(flagSymbols, null, 2));
+  console.log(`[Section 1]: Verified Mapped Web Feature IDs (${flagWebFeatureIds.length} unique identifiers mapped across ${mappedRecords.length} feature records):\n`);
+  console.log(JSON.stringify(flagWebFeatureIds, null, 2));
   
   console.log(`\n------------------------------------------------------------------\n`);
   
-  console.log(`[Section 2]: Unmapped Granular Platform Extensions (${unmappedRecords.length} specific ChromeStatus proposals currently lacking dedicated WebDX shortcodes):\n`);
+  console.log(`[Section 2]: Unmapped Granular Platform Extensions (${unmappedRecords.length} specific features currently lacking dedicated web feature IDs):\n`);
   for (const f of unmappedRecords) {
     console.log(`- ${f.name}`);
   }

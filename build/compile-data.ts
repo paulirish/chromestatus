@@ -28,13 +28,13 @@ async function main() {
   if (!totalCount || isNaN(totalCount)) {
     throw new Error(`Cache corrupted: total_count evaluates to invalid metrics.`);
   }
-  const option1Features: any[] = Array.isArray(verboseData.features) ? verboseData.features : [];
+  const verboseFeatures: any[] = Array.isArray(verboseData.features) ? verboseData.features : [];
 
   console.log(`Total features expected from cache: ${totalCount}`);
 
   // Deduplicate and sort by ID
   const seenIds = new Set<number>();
-  const uniqueOption1: any[] = [];
+  const uniqueVerbose: any[] = [];
   const activeOtIds: number[] = [];
   const experimentalFlagIds: number[] = [];
 
@@ -85,10 +85,10 @@ async function main() {
     console.log("Warning: Failed to read cached ot-api-trials.json. Continuing heuristic evaluation paths.");
   }
 
-  for (const f of option1Features) {
+  for (const f of verboseFeatures) {
     if (f && Number.isInteger(Number(f.id)) && !seenIds.has(f.id)) {
       seenIds.add(f.id);
-      uniqueOption1.push(f);
+      uniqueVerbose.push(f);
 
       const isGenuinelyActive = evaluateActiveOriginTrial(
         f,
@@ -108,31 +108,31 @@ async function main() {
       }
     }
   }
-  uniqueOption1.sort((a, b) => Number(a.id) - Number(b.id));
+  uniqueVerbose.sort((a, b) => Number(a.id) - Number(b.id));
   activeOtIds.sort((a, b) => a - b);
   experimentalFlagIds.sort((a, b) => a - b);
 
   // Systematic Title Disambiguation Phase
-  disambiguateFeatureNames(uniqueOption1);
+  disambiguateFeatureNames(uniqueVerbose);
 
   // Pre-map web_feature identifiers and resolve baseline years
-  const webFeatureMap = assignWebFeaturesAndBaselineYears(uniqueOption1, resolveWebFeatureBaselineYear);
+  const webFeatureMap = assignWebFeaturesAndBaselineYears(uniqueVerbose, resolveWebFeatureBaselineYear);
 
   // Strict Integrity Pre-checks: guarantee downloaded snapshot states are absolute and whole
   if (totalCount < 3000) {
     throw new Error(`Integrity validation failed: Reported total feature count (${totalCount}) is below acceptable historical baseline limits.`);
   }
-  if (uniqueOption1.length !== totalCount) {
-    throw new Error(`Integrity validation failed: Processed granular verbose feature count (${uniqueOption1.length}) does not perfectly equal reported catalog total (${totalCount}). Snapshot mapping is partial or corrupted.`);
+  if (uniqueVerbose.length !== totalCount) {
+    throw new Error(`Integrity validation failed: Processed granular verbose feature count (${uniqueVerbose.length}) does not perfectly equal reported catalog total (${totalCount}). Snapshot mapping is partial or corrupted.`);
   }
 
-  console.log(`Writing ${uniqueOption1.length} granular verbose JSON chunks using persistent numeric database primary keys concurrently...`);
+  console.log(`Writing ${uniqueVerbose.length} granular verbose JSON files using persistent numeric database primary keys concurrently...`);
   await fs.rm(featuresDir, { recursive: true, force: true });
   await fs.mkdir(featuresDir, { recursive: true });
 
   const batchSize = 100;
-  for (let i = 0; i < uniqueOption1.length; i += batchSize) {
-    const batch = uniqueOption1.slice(i, i + batchSize);
+  for (let i = 0; i < uniqueVerbose.length; i += batchSize) {
+    const batch = uniqueVerbose.slice(i, i + batchSize);
     await Promise.all(batch.map(f =>
       fs.writeFile(path.join(featuresDir, `${f.id}.json`), JSON.stringify(f, null, 2))
     ));
@@ -150,24 +150,24 @@ async function main() {
     JSON.stringify(experimentalFlagIds)
   );
 
-  // Generate OT Symbol Mapping JSON
-  console.log("Generating OT symbol mapping JSON...");
+  // Generate active OT mapping JSON
+  console.log("Generating active OT mapping JSON...");
   const otMapping: Record<string, any> = {
     unmapped: []
   };
 
   for (const id of activeOtIds) {
-    const f = uniqueOption1.find(item => item.id === id);
+    const f = uniqueVerbose.find(item => item.id === id);
     if (!f) continue;
 
-    const rawSym = f.web_feature;
-    const symbols = rawSym && rawSym !== 'Missing feature' && rawSym.toLowerCase() !== 'none'
-      ? rawSym.toLowerCase().split(',').map((s: string) => s.trim()).filter(Boolean)
+    const rawId = f.web_feature;
+    const webFeatureIds = rawId && rawId !== 'Missing feature' && rawId.toLowerCase() !== 'none'
+      ? rawId.toLowerCase().split(',').map((s: string) => s.trim()).filter(Boolean)
       : [];
 
-    if (symbols.length > 0) {
-      for (const symbol of symbols) {
-        otMapping[symbol] = {
+    if (webFeatureIds.length > 0) {
+      for (const webFeatureId of webFeatureIds) {
+        otMapping[webFeatureId] = {
           chromestatus_url: `https://chromestatus.com/feature/${f.id}`
         };
       }
@@ -179,7 +179,7 @@ async function main() {
     }
   }
 
-  // Sort WebDX keys and build sorted mapped object
+  // Sort web feature ID keys and build sorted mapped object
   const mappedKeys = Object.keys(otMapping).filter(k => k !== 'unmapped').sort();
   const sortedOtMapping: Record<string, any> = {};
   for (const key of mappedKeys) {
@@ -189,7 +189,7 @@ async function main() {
   otMapping.unmapped.sort((a: any, b: any) => a.name.localeCompare(b.name));
   sortedOtMapping.unmapped = otMapping.unmapped;
 
-  console.log(`Writing active Origin Trial symbol mapping to data/ot-mapping.json...`);
+  console.log(`Writing active Origin Trial mapping to data/ot-mapping.json...`);
   await fs.writeFile(
     path.join(dataDir, 'ot-mapping.json'),
     JSON.stringify(sortedOtMapping, null, 2)
@@ -204,23 +204,23 @@ async function main() {
     JSON.stringify(extras, null, 2)
   );
 
-  console.log("\nProcessing Lite array data from cache...");
-  const option2Content = await fs.readFile(path.join(rawDir, 'features-lite.json'), 'utf8');
-  const option2Data = JSON.parse(option2Content);
-  const option2Features: any[] = Array.isArray(option2Data) ? option2Data : option2Data.features || [];
+  console.log("\nProcessing basic feature array data from cache...");
+  const basicContent = await fs.readFile(path.join(rawDir, 'features-lite.json'), 'utf8');
+  const basicData = JSON.parse(basicContent);
+  const basicFeatures: any[] = Array.isArray(basicData) ? basicData : basicData.features || [];
 
-  const cleanOption2 = option2Features.filter(f => f && Number.isInteger(Number(f.id)));
-  cleanOption2.sort((a, b) => Number(a.id) - Number(b.id));
+  const cleanBasic = basicFeatures.filter(f => f && Number.isInteger(Number(f.id)));
+  cleanBasic.sort((a, b) => Number(a.id) - Number(b.id));
 
-  for (const f of cleanOption2) {
+  for (const f of cleanBasic) {
     if (webFeatureMap.has(f.id)) {
-      const sym = webFeatureMap.get(f.id);
-      f.web_feature = sym;
-      if (sym) {
-        const syms = sym.split(',').map((s: string) => s.trim()).filter(Boolean);
+      const webFeatureStr = webFeatureMap.get(f.id);
+      f.web_feature = webFeatureStr;
+      if (webFeatureStr) {
+        const webFeatureIds = webFeatureStr.split(',').map((s: string) => s.trim()).filter(Boolean);
         let maxYear: number | undefined = undefined;
-        for (const s of syms) {
-          const year = resolveWebFeatureBaselineYear(s);
+        for (const id of webFeatureIds) {
+          const year = resolveWebFeatureBaselineYear(id);
           if (year !== undefined) {
             if (maxYear === undefined || year > maxYear) {
               maxYear = year;
@@ -238,14 +238,14 @@ async function main() {
     }
   }
 
-  if (cleanOption2.length !== totalCount) {
-    throw new Error(`Integrity validation failed: Processed Lite flat record array count (${cleanOption2.length}) does not perfectly equal reported catalog total (${totalCount}). Base list output is partial or corrupted.`);
+  if (cleanBasic.length !== totalCount) {
+    throw new Error(`Integrity validation failed: Processed basic feature flat record array count (${cleanBasic.length}) does not perfectly equal reported catalog total (${totalCount}). Base list output is partial or corrupted.`);
   }
 
-  console.log(`Writing ${cleanOption2.length} flattened base records to data/lite.json...`);
+  console.log(`Writing ${cleanBasic.length} basic feature records to data/lite.json...`);
   await fs.writeFile(
     path.join(dataDir, 'lite.json'),
-    JSON.stringify(cleanOption2, null, 2)
+    JSON.stringify(cleanBasic, null, 2)
   );
 
   console.log("\nData compilation complete.");

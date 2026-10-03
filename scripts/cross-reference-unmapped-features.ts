@@ -25,7 +25,7 @@ async function main() {
   const verifiedMappings: {
     featureName: string;
     documentedSpecs: string[];
-    verifiedWebFeatureSymbol: string;
+    verifiedWebFeatureId: string;
   }[] = [];
 
   const overridesDictionary: Record<string, string> = {};
@@ -45,26 +45,26 @@ async function main() {
 
     if (!documentedSpecs.length) continue;
 
-    let granularSymbolMatched: string | null = null;
+    let granularWebFeatureIdMatched: string | null = null;
 
     // Exclude broad monolithic specs from matching granular entries
-    for (const [symbol, wfData] of Object.entries(webFeatures)) {
-      if (wfData.kind !== 'feature' || MONOLITHIC_SYMBOLS.has(symbol) || symbol.length <= 2) continue;
+    for (const [webFeatureId, wfData] of Object.entries(webFeatures)) {
+      if (wfData.kind !== 'feature' || MONOLITHIC_SYMBOLS.has(webFeatureId) || webFeatureId.length <= 2) continue;
       const wfSpecs: string[] = [wfData.spec ?? []].flat();
       if (documentedSpecs.some(dSpec => wfSpecs.some(wSpec => isSpecMatch(dSpec, wSpec)))) {
-        granularSymbolMatched = symbol;
+        granularWebFeatureIdMatched = webFeatureId;
         break;
       }
     }
 
 
-    if (granularSymbolMatched) {
+    if (granularWebFeatureIdMatched) {
       verifiedMappings.push({
         featureName: cleanName,
         documentedSpecs,
-        verifiedWebFeatureSymbol: granularSymbolMatched
+        verifiedWebFeatureId: granularWebFeatureIdMatched
       });
-      overridesDictionary[cleanName] = granularSymbolMatched;
+      overridesDictionary[cleanName] = granularWebFeatureIdMatched;
     }
   }
 
