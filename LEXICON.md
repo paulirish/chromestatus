@@ -12,6 +12,7 @@ One entry in the ChromeStatus.com catalog: a Chromium launch, change, deprecatio
 Its numeric `id` is the **ChromeStatus feature ID**. Not to be confused with a web-features "feature ID", which is a string slug (see [AGENTS.md](./AGENTS.md) on keeping numeric IDs out of human-facing surfaces).
 
 * _Reference_: `src/types.ts#ChromeStatusFeatureStub`, `src/types.ts#ChromeStatusFeatureDetailed`
+* _AKA_: FeatureEntry — the ChromeStatus datastore model
 
 ### Web feature
 
@@ -29,10 +30,10 @@ The lowercase hyphenated slug that identifies a web feature (e.g. `canvas-html`)
 
 ### BCD key
 
-A dotted path in [@mdn/browser-compat-data](https://github.com/mdn/browser-compat-data) (e.g. `api.CSSPositionTryDescriptors`), the finest granularity in this project. A web feature lists the BCD keys it covers. BCD keys are what collector tests check.
+A dotted path in [@mdn/browser-compat-data](https://github.com/mdn/browser-compat-data) (e.g. `api.CSSPositionTryDescriptors`), the finest granularity in this project. A web feature lists the BCD keys it covers. BCD keys are what collector tests check. BCD's own docs call this a "feature identifier", which clashes with the web-features term, so this project uses "BCD key" as [web-features-mappings](https://github.com/web-platform-dx/web-features-mappings) does.
 
 * _Reference_: `src/empirical-index.ts#EmpiricalSupportIndex.getSupport`
-* _AKA_: compat feature — used by web-features (`compat_features`)
+* _AKA_: compat feature — used by web-features (`compat_features`); feature identifier — used by BCD
 
 ### Collector results
 
@@ -88,23 +89,32 @@ A not-yet-shipped ChromeStatus feature that can only be enabled through an Activ
 A browser runtime switch (such as an entry in `chrome://flags` or a command-line switch) that enables an unshipped feature. A feature that requires one is "behind a flag". This covers any flag, not only `--enable-experimental-web-platform-features`. Not to be confused with the ChromeStatus "Intent to Experiment" stage, which is an Origin Trial process step.
 
 * _Reference_: `src/compile-helpers.ts#evaluateBehindFlag`, `data/experimental-flag-index.json`
+* _AKA_: flags — used by BCD support statements
 * _Avoid_: experimental flag — implies only the experimental web platform features switch, and collides with "Intent to Experiment"
 
 ## Mapping
 
+### Mapping
+
+The link from a ChromeStatus feature to one or more web feature IDs. In this project a mapping comes from the upstream `web_feature` field or from an override. Upstream [web-features-mappings](https://github.com/web-platform-dx/web-features-mappings) also publishes ChromeStatus mappings (`mappings/chrome-status.json`). Heuristic matches (spec-URL or token-similarity suggestions from scripts) are only candidates and do not become mappings until someone accepts them. Not to be confused with the link from a web feature to its BCD keys, which web-features owns (`compat_features`).
+
+* _Reference_: `src/compile-helpers.ts#assignWebFeaturesAndBaselineYears`
+* _AKA_: mapping — used by web-features-mappings
+* _Avoid_: join table — rejected in favor of the upstream term
+
 ### Override
 
-A curated feature name → web feature ID entry kept in this repository. When present, it takes precedence over the upstream `web_feature` value at compile time. Not to be confused with heuristic matches (spec-URL or token-similarity suggestions from scripts), which are never applied automatically.
+A curated mapping (feature name → web feature ID) kept in this repository. When present, it takes precedence over the upstream `web_feature` value at compile time.
 
 * _Reference_: `src/overrides.ts#CUSTOM_WEB_FEATURE_OVERRIDES`
 
 ### Unmapped
 
-A ChromeStatus feature with no usable web feature reference: the field is absent, empty, or a sentinel such as `Missing feature` or `none`. Not to be confused with an orphan, which has a reference that points to nothing.
+A ChromeStatus feature with no mapping: the field is absent, empty, or a sentinel such as `Missing feature` or `none`, and no override exists. Not to be confused with an orphan, which has a mapping that points to nothing.
 
 ### Orphan
 
-A ChromeStatus feature whose `web_feature` value names an ID that does not exist in the web-features package. Not to be confused with an unmapped feature (no reference at all) or a redirect (an ID that web-features marks as moved or split).
+A ChromeStatus feature whose mapping names an ID that does not exist in the web-features package. Not to be confused with an unmapped feature (no mapping at all) or a redirect (an ID that web-features marks as `moved` or `split`; "redirect" is the web-features term).
 
 * _Reference_: `src/alignment.ts#AlignmentReport.orphans`
 
