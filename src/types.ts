@@ -4,6 +4,7 @@
 
 /**
  * Stage type constant definitions from chromium-dashboard `internals/core_enums.py`.
+ * Source of truth: https://github.com/GoogleChrome/chromium-dashboard/blob/main/internals/core_enums.py
  */
 export const STAGE_TYPES = {
   // Blink incubation process (new standards)

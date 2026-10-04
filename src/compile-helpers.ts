@@ -104,7 +104,10 @@ function isOldBaseline(baselineYear: number | undefined): boolean {
   return baselineYear !== undefined && baselineYear < GATING_BASELINE_CUTOFF_YEAR;
 }
 
-/** ALL_ORIGIN_TRIAL_STAGE_TYPES in chromium-dashboard `internals/core_enums.py`: Blink, Fast Track and Deprecation trials. */
+/**
+ * ALL_ORIGIN_TRIAL_STAGE_TYPES in chromium-dashboard `internals/core_enums.py`: Blink, Fast Track and Deprecation trials.
+ * Source: https://github.com/GoogleChrome/chromium-dashboard/blob/main/internals/core_enums.py
+ */
 const ORIGIN_TRIAL_STAGE_TYPES: ReadonlySet<StageType> = new Set<StageType>([
   STAGE_TYPES.STAGE_BLINK_ORIGIN_TRIAL,
   STAGE_TYPES.STAGE_FAST_ORIGIN_TRIAL,
