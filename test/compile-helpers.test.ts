@@ -11,6 +11,7 @@ import {
   type OriginTrialContext,
   type WebFeaturesCatalog,
 } from '../src/compile-helpers.ts';
+import { STAGE_TYPES } from '../src/types.ts';
 
 const catalog: WebFeaturesCatalog = {
   'feature-a': { kind: 'feature', status: { baseline_low_date: '2024-05-10' } },
@@ -65,13 +66,13 @@ test('resolveGatedBy', () => {
     otApiActiveTrialNames: new Set(['ActiveTrialName']),
   };
   const noFeed: OriginTrialContext = { ...feed, otApiActiveFeatureIds: new Set(), otApiActiveTrialNames: new Set() };
-  const otStage = (desktop_first: number, desktop_last: number | null) => ({ stage_type: 150 as const, desktop_first, desktop_last });
+  const otStage = (desktop_first: number, desktop_last: number | null) => ({ stage_type: STAGE_TYPES.STAGE_BLINK_ORIGIN_TRIAL, desktop_first, desktop_last });
 
   const cases = {
     feedListsFeatureId: resolveGatedBy({ id: 101 }, feed, undefined),
-    feedListsTrialName: resolveGatedBy({ id: 102, stages: [{ stage_type: 150, ot_chromium_trial_name: 'ActiveTrialName' }] }, feed, undefined),
-    feedListsDeprecationTrialName: resolveGatedBy({ id: 104, stages: [{ stage_type: 450, ot_chromium_trial_name: 'ActiveTrialName' }] }, feed, undefined),
-    feedIgnoresEvalReadinessStage: resolveGatedBy({ id: 105, stages: [{ stage_type: 140, ot_chromium_trial_name: 'ActiveTrialName' }] }, feed, undefined),
+    feedListsTrialName: resolveGatedBy({ id: 102, stages: [{ stage_type: STAGE_TYPES.STAGE_BLINK_ORIGIN_TRIAL, ot_chromium_trial_name: 'ActiveTrialName' }] }, feed, undefined),
+    feedListsDeprecationTrialName: resolveGatedBy({ id: 104, stages: [{ stage_type: STAGE_TYPES.STAGE_DEP_DEPRECATION_TRIAL, ot_chromium_trial_name: 'ActiveTrialName' }] }, feed, undefined),
+    feedIgnoresEvalReadinessStage: resolveGatedBy({ id: 105, stages: [{ stage_type: STAGE_TYPES.STAGE_BLINK_EVAL_READINESS, ot_chromium_trial_name: 'ActiveTrialName' }] }, feed, undefined),
     feedOverridesHeuristic: resolveGatedBy({ id: 103, stages: [otStage(100, 125)] }, feed, undefined),
     heuristicEndedTrial: resolveGatedBy({ id: 1, stages: [otStage(100, 115)] }, noFeed, undefined),
     heuristicRunningTrial: resolveGatedBy({ id: 2, stages: [otStage(100, 125)] }, noFeed, undefined),

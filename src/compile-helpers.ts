@@ -1,6 +1,6 @@
 import { features as defaultWebFeatures } from 'web-features';
 import { CUSTOM_WEB_FEATURE_OVERRIDES } from './overrides.ts';
-import type { GatedBy, Stage, StageType } from './types.ts';
+import { type GatedBy, type Stage, type StageType, STAGE_TYPES } from './types.ts';
 
 /** Minimal web-features catalog entry shape used for resolution. */
 export interface WebFeatureEntryLike {
@@ -105,8 +105,14 @@ function isOldBaseline(baselineYear: number | undefined): boolean {
 }
 
 /** ALL_ORIGIN_TRIAL_STAGE_TYPES in chromium-dashboard `internals/core_enums.py`: Blink, Fast Track and Deprecation trials. */
-const ORIGIN_TRIAL_STAGE_TYPES: ReadonlySet<StageType> = new Set<StageType>([150, 250, 450]);
-const BLINK_ORIGIN_TRIAL_STAGE_TYPE: ReadonlySet<StageType> = new Set<StageType>([150]);
+const ORIGIN_TRIAL_STAGE_TYPES: ReadonlySet<StageType> = new Set<StageType>([
+  STAGE_TYPES.STAGE_BLINK_ORIGIN_TRIAL,
+  STAGE_TYPES.STAGE_FAST_ORIGIN_TRIAL,
+  STAGE_TYPES.STAGE_DEP_DEPRECATION_TRIAL,
+]);
+const BLINK_ORIGIN_TRIAL_STAGE_TYPE: ReadonlySet<StageType> = new Set<StageType>([
+  STAGE_TYPES.STAGE_BLINK_ORIGIN_TRIAL,
+]);
 
 function stagesOfType(f: GatingInput, types: ReadonlySet<StageType>): Partial<Stage>[] {
   return (f.stages ?? []).filter(s => s.stage_type !== undefined && types.has(s.stage_type));
